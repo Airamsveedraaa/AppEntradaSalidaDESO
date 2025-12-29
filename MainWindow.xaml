@@ -4,9 +4,111 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AppEntradaSalidaDESO"
+        xmlns:vm="clr-namespace:AppEntradaSalidaDESO.ViewModels"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Simulador de Planificación de Discos - DESO" Height="700" Width="1000"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <!-- Estilo básico para TextBoxes con Header -->
+        <Style TargetType="TextBlock" x:Key="LabelStyle">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,10,0,5"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
 
+    <Grid Margin="20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="350"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Panel de Configuración -->
+        <Border Grid.Column="0" Background="#F5F5F5" Padding="20" CornerRadius="8">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Configuración del Ejercicio" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <!-- Algoritmo -->
+                    <TextBlock Text="Algoritmo" Style="{StaticResource LabelStyle}"/>
+                    <ComboBox ItemsSource="{Binding Algorithms}" 
+                              SelectedItem="{Binding SelectedAlgorithmName}"
+                              Padding="10" FontSize="14"/>
+
+                    <!-- Peticiones -->
+                    <TextBlock Text="Peticiones (separadas por comas)" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Text="{Binding RequestsInput, UpdateSourceTrigger=PropertyChanged}" 
+                             Padding="5" FontSize="14" Height="60" TextWrapping="Wrap"
+                             ToolTip="Ejemplo: 98, 183, 37, 122, 14, 124, 65, 67"/>
+
+                    <!-- Configuración del Disco -->
+                    <TextBlock Text="Configuración del Disco" FontSize="16" FontWeight="Bold" Margin="0,20,0,5" Foreground="#007ACC"/>
+                    
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Min Cilindro" Style="{StaticResource LabelStyle}"/>
+                            <TextBox Text="{Binding MinCylinder}" Padding="5" FontSize="14"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Max Cilindro" Style="{StaticResource LabelStyle}"/>
+                            <TextBox Text="{Binding MaxCylinder}" Padding="5" FontSize="14"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="Posición Inicial Cabezal" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Text="{Binding InitialPosition}" Padding="5" FontSize="14"/>
+
+                    <!-- Dirección (Condicional) -->
+                    <StackPanel Visibility="{Binding IsDirectionRequired, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Dirección Inicial" Style="{StaticResource LabelStyle}"/>
+                        <ComboBox SelectedItem="{Binding SelectedDirection}" Padding="10" FontSize="14">
+                            <ComboBoxItem Content="up" Tag="up"/>
+                            <ComboBoxItem Content="down" Tag="down"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Botón Ejecutar -->
+                    <Button Command="{Binding ExecuteCommand}" 
+                            Content="Simular" 
+                            Margin="0,30,0,0" 
+                            Padding="10" 
+                            Background="#007ACC" 
+                            Foreground="White" 
+                            FontWeight="Bold" 
+                            FontSize="16"
+                            Cursor="Hand"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Panel de Resultados -->
+        <Grid Grid.Column="1" Margin="20,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Resultados de la Simulación" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+
+            <TextBox Grid.Row="1" 
+                     Text="{Binding ResultOutput, Mode=OneWay}" 
+                     IsReadOnly="True" 
+                     VerticalScrollBarVisibility="Auto" 
+                     FontFamily="Consolas" 
+                     FontSize="14" 
+                     Padding="10"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"/>
+        </Grid>
     </Grid>
 </Window>
