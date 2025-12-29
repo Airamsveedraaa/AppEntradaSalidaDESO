@@ -44,76 +44,65 @@ AppEntradaSalidaDESO/
 ## 🚀 Requisitos
 
 - Windows 10/11
-- .NET 10.0 SDK o superior
-- Visual Studio 2022 (recomendado) o VS Code
+- .NET 10.0 SDK (Solo para compilar)
+- **Para usuarios finales**: Solo necesitan el archivo `.exe` generado.
 
-## 📦 Instalación
+## 📦 Instalación y Ejecución Rápida
 
-1. Clonar el repositorio:
+### Opción A (Desarrolladores)
+1. Clonar y ejecutar:
 ```bash
 git clone https://github.com/Airamsveedraaa/AppEntradaSalidaDESO.git
 cd AppEntradaSalidaDESO
-```
-
-2. Restaurar dependencias:
-```bash
-dotnet restore
-```
-
-3. Compilar el proyecto:
-```bash
-dotnet build
-```
-
-4. Ejecutar la aplicación:
-```bash
 dotnet run
 ```
 
+### Opción B (Generar Ejecutable para "Producción")
+Para crear una aplicación portátil (sin necesidad de instalar .NET en la máquina destino) o un ejecutable simple:
+
+1. Ejecuta el comando de publicación:
+```bash
+dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+```
+2. El archivo `AppEntradaSalidaDESO.exe` estará en:
+   `bin\Release\net10.0-windows\win-x64\publish\`
+
+Este archivo `.exe` es todo lo que necesitas compartir.
+
+## 🖥️ Interfaz de Usuario
+
+La aplicación cuenta con una interfaz gráfica moderna (WPF):
+
+1. **Configuración**:
+   - Selecciona el algoritmo (FCFS, SSTF, SCAN, etc.).
+   - Introduce la cola de peticiones (ej: `98, 183, 37`).
+   - Define los límites del disco (`min` y `max`).
+   - Elige la posición inicial del cabezal.
+
+2. **Resultados**:
+   - Visualiza métricas clave (Movimiento Total, Tiempo Promedio).
+   - Tabla detallada paso a paso con distancias y direcciones.
+
+## 📚 Características Completadas
+
+- [x] **8 Algoritmos**: FCFS, SSTF, SCAN, C-SCAN, LOOK, C-LOOK, F-SCAN, F-LOOK.
+- [x] **Configuración Dinámica**: Soporte para discos de cualquier tamaño.
+- [x] **Interfaz Gráfica**: Panel de control intuitivo y tabla de resultados.
+- [x] **Visualización**: Detalle paso a paso de cada movimiento.
+- [x] **Icono Personalizado**: Identidad visual básica.
+
 ## 🛠️ Desarrollo
 
-### Compilar en modo Release
-```bash
-dotnet build --configuration Release
-```
-
-### Publicar para Windows
-```bash
-dotnet publish -c Release -r win-x64 --self-contained
-```
-
-## 📚 Características Planeadas
-
-- [x] Implementación de algoritmos core (FCFS, SSTF, SCAN, C-SCAN, LOOK, C-LOOK)
-- [x] Modelos de datos y servicios
-- [ ] Interfaz gráfica WPF
-- [ ] Visualización de movimientos del cabezal
-- [ ] Sistema de estadísticas y progreso
-- [ ] Visor de PDFs integrado
-- [ ] Generación aleatoria de ejercicios
-- [ ] Exportación de resultados
-- [ ] Modo oscuro/claro
-
-## 👥 Contribuir
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+Si quieres contribuir:
+1. Abre el proyecto en Visual Studio 2022 o VS Code.
+2. La arquitectura sigue el patrón **MVVM**:
+   - `ViewModels/MainViewModel.cs`: Lógica de presentación.
+   - `Views/MainWindow.xaml`: Interfaz de usuario.
+   - `Algorithms/`: Lógica del núcleo.
 
 ## 📄 Licencia
 
-Este proyecto está distribuido bajo la licencia **GNU General Public License v3 (GPLv3)**.
-
-Esta licencia es restrictiva y garantiza que el software permanezca libre. Cualquier distribución o modificación de este código debe:
-1. Mantener esta misma licencia (GPLv3).
-2. Proporcionar el código fuente completo.
-3. **Dar crédito explícito al autor original.**
-
-Consulta el archivo `LICENSE.md` para ver el texto completo de la licencia.
+Este proyecto está distribuido bajo la licencia **GNU General Public License v3 (GPLv3)**. Consulta `LICENSE.md`.
 
 ## 📧 Contacto
 
