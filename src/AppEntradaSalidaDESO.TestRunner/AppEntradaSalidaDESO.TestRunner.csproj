@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\AppEntradaSalidaDESO.csproj" />
+    <ProjectReference Include="..\AppEntradaSalidaDESO\AppEntradaSalidaDESO.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -20,7 +20,7 @@ New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 # 2. Publicar la App (Single File)
 Write-Host "[*] Compilando y Publicando proyecto..." -ForegroundColor Green
 Set-Location $ProjectRoot
-dotnet publish "AppEntradaSalidaDESO.csproj" -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+dotnet publish "src\AppEntradaSalidaDESO\AppEntradaSalidaDESO.csproj" -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Fallo en la compilacion."
@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 2.1 Copiar al directorio de salida manualmente (para evitar errores de -o con WPF)
-$DefaultPublishDir = "$ProjectRoot\bin\Release\net10.0-windows\win-x64\publish"
+$DefaultPublishDir = "$ProjectRoot\src\AppEntradaSalidaDESO\bin\Release\net10.0-windows\win-x64\publish"
 Write-Host "[*] Copiando archivos desde $DefaultPublishDir..." -ForegroundColor Green
 Copy-Item -Path "$DefaultPublishDir\*" -Destination "$OutputDir\App" -Recurse -Force
 
