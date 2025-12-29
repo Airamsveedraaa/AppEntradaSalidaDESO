@@ -11,6 +11,6 @@ namespace AppEntradaSalidaDESO.Algorithms
         string Name { get; }
         string Description { get; }
         bool RequiresDirection { get; }
-        ExerciseResult Execute(int initialPosition, List<int> requests, string direction = "up");
+        ExerciseResult Execute(int initialPosition, List<int> requests, int minCylinder, int maxCylinder, string direction = "up");
     }
 }

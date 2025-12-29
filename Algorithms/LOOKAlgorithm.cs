@@ -14,7 +14,7 @@ namespace AppEntradaSalidaDESO.Algorithms
         public string Description => "LOOK - Como SCAN pero solo va hasta la última petición";
         public bool RequiresDirection => true;
 
-        public ExerciseResult Execute(int initialPosition, List<int> requests, string direction = "up")
+        public ExerciseResult Execute(int initialPosition, List<int> requests, int minCylinder, int maxCylinder, string direction = "up")
         {
             var result = new ExerciseResult(Name, initialPosition, requests) { Direction = direction };
             int currentPosition = initialPosition;

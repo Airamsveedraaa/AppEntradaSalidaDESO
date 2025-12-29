@@ -14,6 +14,9 @@ Esta aplicación permite a los estudiantes practicar y comprender los diferentes
 - **C-SCAN** (Circular SCAN) - Recorre en una dirección y vuelve al inicio circularmente
 - **LOOK** - Como SCAN pero solo va hasta la última petición
 - **C-LOOK** - Como C-SCAN pero solo va hasta la última petición
+- **F-SCAN** - Congela peticiones entrantes, procesa por lotes (equivale a SCAN estático)
+- **F-LOOK** - Variante congelada de LOOK (equivale a LOOK estático)
+- **Mejora**: Soporte para límites de disco dinámicos (min/max cylinder configurable)
 
 ## 🏗️ Estructura del Proyecto
 

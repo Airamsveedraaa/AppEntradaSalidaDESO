@@ -14,13 +14,11 @@ namespace AppEntradaSalidaDESO.Algorithms
         public string Description => "C-SCAN (Circular SCAN) - Recorre en una dirección, vuelve al inicio circularmente";
         public bool RequiresDirection => true;
 
-        public ExerciseResult Execute(int initialPosition, List<int> requests, string direction = "up")
+        public ExerciseResult Execute(int initialPosition, List<int> requests, int minCylinder, int maxCylinder, string direction = "up")
         {
             var result = new ExerciseResult(Name, initialPosition, requests) { Direction = direction };
             int currentPosition = initialPosition;
             int totalMovement = 0;
-            const int MAX_CYLINDER = 199;
-            const int MIN_CYLINDER = 0;
 
             result.AddStep($"Posición inicial del cabezal: {initialPosition}");
             result.AddStep($"Cola de peticiones: [{string.Join(", ", requests)}]");
@@ -51,17 +49,17 @@ namespace AppEntradaSalidaDESO.Algorithms
                 // Si hay peticiones pendientes, ir al final y volver al inicio
                 if (leftRequests.Count > 0)
                 {
-                    int movementToEnd = MAX_CYLINDER - currentPosition;
+                    int movementToEnd = maxCylinder - currentPosition;
                     totalMovement += movementToEnd;
-                    result.AddStep($"Paso {step}: Mover hasta el extremo superior ({MAX_CYLINDER})");
+                    result.AddStep($"Paso {step}: Mover hasta el extremo superior ({maxCylinder})");
                     result.AddStep($"  Movimiento: {movementToEnd} cilindros | Acumulado: {totalMovement}");
                     step++;
 
-                    int returnMovement = MAX_CYLINDER - MIN_CYLINDER;
+                    int returnMovement = maxCylinder - minCylinder;
                     totalMovement += returnMovement;
-                    result.AddStep($"Paso {step}: Retorno circular al inicio ({MIN_CYLINDER})");
+                    result.AddStep($"Paso {step}: Retorno circular al inicio ({minCylinder})");
                     result.AddStep($"  Movimiento: {returnMovement} cilindros | Acumulado: {totalMovement}");
-                    currentPosition = MIN_CYLINDER;
+                    currentPosition = minCylinder;
                     step++;
 
                     result.AddStep("");
@@ -96,17 +94,17 @@ namespace AppEntradaSalidaDESO.Algorithms
                 // Si hay peticiones pendientes, ir al inicio y volver al final
                 if (rightRequests.Count > 0)
                 {
-                    int movementToStart = currentPosition - MIN_CYLINDER;
+                    int movementToStart = currentPosition - minCylinder;
                     totalMovement += movementToStart;
-                    result.AddStep($"Paso {step}: Mover hasta el extremo inferior ({MIN_CYLINDER})");
+                    result.AddStep($"Paso {step}: Mover hasta el extremo inferior ({minCylinder})");
                     result.AddStep($"  Movimiento: {movementToStart} cilindros | Acumulado: {totalMovement}");
                     step++;
 
-                    int returnMovement = MAX_CYLINDER - MIN_CYLINDER;
+                    int returnMovement = maxCylinder - minCylinder;
                     totalMovement += returnMovement;
-                    result.AddStep($"Paso {step}: Retorno circular al final ({MAX_CYLINDER})");
+                    result.AddStep($"Paso {step}: Retorno circular al final ({maxCylinder})");
                     result.AddStep($"  Movimiento: {returnMovement} cilindros | Acumulado: {totalMovement}");
-                    currentPosition = MAX_CYLINDER;
+                    currentPosition = maxCylinder;
                     step++;
 
                     result.AddStep("");

@@ -14,7 +14,7 @@ namespace AppEntradaSalidaDESO.Algorithms
         public string Description => "First Come First Served - Atiende las peticiones en orden de llegada";
         public bool RequiresDirection => false;
 
-        public ExerciseResult Execute(int initialPosition, List<int> requests, string direction = "up")
+        public ExerciseResult Execute(int initialPosition, List<int> requests, int minCylinder, int maxCylinder, string direction = "up")
         {
             var result = new ExerciseResult(Name, initialPosition, requests);
             int currentPosition = initialPosition;
