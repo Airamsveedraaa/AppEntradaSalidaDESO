@@ -7,8 +7,7 @@
         xmlns:vm="clr-namespace:AppEntradaSalidaDESO.ViewModels"
         mc:Ignorable="d"
         Title="Simulador de Planificación de Discos - DESO" Height="700" Width="1000"
-        WindowStartupLocation="CenterScreen"
-        Icon="/Resources/disk_icon.png">
+        WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
         <!-- Estilo básico para TextBoxes con Header -->

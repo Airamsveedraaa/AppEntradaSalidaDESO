@@ -20,7 +20,7 @@ New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 # 2. Publicar la App (Single File)
 Write-Host "[*] Compilando y Publicando proyecto..." -ForegroundColor Green
 Set-Location $ProjectRoot
-dotnet publish "src\AppEntradaSalidaDESO\AppEntradaSalidaDESO.csproj" -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+dotnet publish "src\AppEntradaSalidaDESO\AppEntradaSalidaDESO.csproj" -c Release -r win-x64 --no-self-contained -p:PublishSingleFile=true
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Fallo en la compilacion."
@@ -36,9 +36,21 @@ Copy-Item -Path "$DefaultPublishDir\*" -Destination "$OutputDir\App" -Recurse -F
 Write-Host "[*] Agregando script de instalacion..." -ForegroundColor Green
 Copy-Item "$ProjectRoot\scripts\Setup.bat" "$OutputDir\App\INSTALAR (Crear Acceso Directo).bat"
 
+# 3.1 Validar
+$ExePath = "$OutputDir\App\AppEntradaSalidaDESO.exe"
+if (-not (Test-Path $ExePath)) {
+    Write-Error "ERROR CRITICO: No se encuentra el .exe en $ExePath"
+    Write-Error "La publicacion fallo o no genero el archivo esperado."
+    exit 1
+}
+
 # 4. Crear ZIP
+Write-Host "[*] Esperando desbloqueo de archivos (5s)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 5
+
 $ZipPath = "$OutputDir\SimuladorDiscos_v0.1.0_Beta.zip"
 Write-Host "[*] Comprimiendo en ZIP: $ZipPath" -ForegroundColor Green
+if (Test-Path $ZipPath) { Remove-Item $ZipPath }
 Compress-Archive -Path "$OutputDir\App\*" -DestinationPath $ZipPath -Force
 
 Write-Host ""
