@@ -1,0 +1,41 @@
+# Ignorar archivos de compilación
+bin/
+obj/
+*.user
+*.suo
+*.cache
+
+# Ignorar archivos de Visual Studio
+.vs/
+*.sln.docstates
+
+# Ignorar archivos de publicación
+publish/
+dist/
+
+# Ignorar archivos de configuración local
+appsettings.Development.json
+*.db
+*.db-shm
+*.db-wal
+
+# Ignorar archivos temporales
+*.tmp
+*.temp
+*.log
+
+# Ignorar archivos del sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Ignorar archivos de Node (si se usan herramientas)
+node_modules/
+package-lock.json
+
+# Ignorar archivos de JetBrains
+.idea/
+
+# Ignorar archivos descargados temporalmente
+repo.zip
+AppEntradaSalidaDESO-main/
