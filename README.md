@@ -103,7 +103,14 @@ Las contribuciones son bienvenidas. Por favor:
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+Este proyecto está distribuido bajo la licencia **GNU General Public License v3 (GPLv3)**.
+
+Esta licencia es restrictiva y garantiza que el software permanezca libre. Cualquier distribución o modificación de este código debe:
+1. Mantener esta misma licencia (GPLv3).
+2. Proporcionar el código fuente completo.
+3. **Dar crédito explícito al autor original.**
+
+Consulta el archivo `LICENSE.md` para ver el texto completo de la licencia.
 
 ## 📧 Contacto
 
