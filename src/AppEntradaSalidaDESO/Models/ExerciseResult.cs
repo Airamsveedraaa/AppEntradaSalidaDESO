@@ -16,6 +16,11 @@ namespace AppEntradaSalidaDESO.Models
         public double AverageSeekTime { get; set; }
         public string Direction { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Resultado de los cálculos de tiempo de acceso (opcional)
+        /// </summary>
+        public AccessTimeResult? AccessTime { get; set; }
+
         public ExerciseResult()
         {
         }

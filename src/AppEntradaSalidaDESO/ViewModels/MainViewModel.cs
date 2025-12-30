@@ -13,6 +13,7 @@ namespace AppEntradaSalidaDESO.ViewModels
     public partial class MainViewModel : ObservableObject
     {
         private readonly AlgorithmService _algorithmService;
+        private readonly DiskCalculationService _calculationService;
 
         [ObservableProperty]
         private ObservableCollection<string> _algorithms;
@@ -46,9 +47,48 @@ namespace AppEntradaSalidaDESO.ViewModels
         [ObservableProperty]
         private ExerciseResult? _currentResult;
 
+        // Propiedades para geometría del disco
+        [ObservableProperty]
+        private bool _useBlockConversion = false;
+
+        [ObservableProperty]
+        private int _sectorsPerTrack = 10;
+
+        [ObservableProperty]
+        private int _cylinders = 100;
+
+        [ObservableProperty]
+        private int _faces = 2;
+
+        [ObservableProperty]
+        private int _sectorSize = 512;
+
+        [ObservableProperty]
+        private int _blockSize = 1024;
+
+        [ObservableProperty]
+        private double _blocksPerCylinder = 0;
+
+        // Propiedades para cálculos de tiempo
+        [ObservableProperty]
+        private bool _calculateAccessTime = false;
+
+        [ObservableProperty]
+        private double _seekTimePerTrack = 1.0;
+
+        [ObservableProperty]
+        private int _rpm = 7200;
+
+        [ObservableProperty]
+        private int _sectorsPerBlock = 2;
+
+        [ObservableProperty]
+        private ObservableCollection<StepRow> _stepsTable = new();
+
         public MainViewModel()
         {
             _algorithmService = new AlgorithmService();
+            _calculationService = new DiskCalculationService();
             Algorithms = new ObservableCollection<string>(_algorithmService.GetAlgorithmNames());
             SelectedAlgorithmName = Algorithms.FirstOrDefault();
         }
@@ -69,12 +109,42 @@ namespace AppEntradaSalidaDESO.ViewModels
             {
                 if (string.IsNullOrWhiteSpace(SelectedAlgorithmName)) return;
 
-                // Parse requests
-                var requests = ParseRequests(RequestsInput);
-                if (requests.Count == 0)
+                // Parse requests (pueden ser bloques o pistas)
+                var inputRequests = ParseRequests(RequestsInput);
+                if (inputRequests.Count == 0)
                 {
                     ResultOutput = "Error: Por favor introduce al menos una petición de disco válida.";
                     return;
+                }
+
+                // Convertir bloques a pistas si está habilitado
+                List<int> requests;
+                string conversionInfo = "";
+                
+                if (UseBlockConversion)
+                {
+                    try
+                    {
+                        var diskSpecs = new DiskSpecs(SectorsPerTrack, Cylinders, Faces, SectorSize, BlockSize);
+                        requests = _calculationService.BlocksToTracks(inputRequests, diskSpecs);
+                        
+                        // Agregar información de conversión
+                        conversionInfo = "=== Conversión de Bloques a Pistas ===\n";
+                        for (int i = 0; i < inputRequests.Count; i++)
+                        {
+                            conversionInfo += $"  Bloque {inputRequests[i]} → Pista {requests[i]}\n";
+                        }
+                        conversionInfo += "\n";
+                    }
+                    catch (Exception ex)
+                    {
+                        ResultOutput = $"Error en conversión de bloques: {ex.Message}";
+                        return;
+                    }
+                }
+                else
+                {
+                    requests = inputRequests;
                 }
 
                 // Validaciones
@@ -100,10 +170,38 @@ namespace AppEntradaSalidaDESO.ViewModels
                     return;
                 }
 
-                // Execute
+                // Execute algorithm
                 CurrentResult = algorithm.Execute(InitialPosition, requests, MinCylinder, MaxCylinder, SelectedDirection);
                 
-                // Format output
+                // Calcular tiempos de acceso si está habilitado
+                if (CalculateAccessTime && CurrentResult != null)
+                {
+                    try
+                    {
+                        var timeSpecs = new TimeSpecs(SeekTimePerTrack, Rpm, SectorsPerBlock);
+                        var diskSpecs = UseBlockConversion 
+                            ? new DiskSpecs(SectorsPerTrack, Cylinders, Faces, SectorSize, BlockSize)
+                            : null;
+
+                        CurrentResult.AccessTime = _calculationService.CalculateAccessTime(
+                            CurrentResult.TotalHeadMovement,
+                            CurrentResult.ProcessingOrder.Count,
+                            timeSpecs,
+                            diskSpecs
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        conversionInfo += $"\nAdvertencia: No se pudieron calcular los tiempos de acceso: {ex.Message}\n";
+                    }
+                }
+                
+                // Format output (incluir info de conversión si existe)
+                if (!string.IsNullOrEmpty(conversionInfo))
+                {
+                    ResultOutput = conversionInfo;
+                }
+                
                 FormatResultOutput();
             }
             catch (Exception ex)
@@ -133,21 +231,34 @@ namespace AppEntradaSalidaDESO.ViewModels
             return list;
         }
 
-        [ObservableProperty]
-        private ObservableCollection<StepRow> _stepsTable = new();
-
         private void FormatResultOutput()
         {
             if (CurrentResult == null) return;
 
-            // Generar Texto (mantener lógica existente por ahora como respaldo o resumen)
+            // Generar Texto
             var sb = new StringBuilder();
+            
+            // Mantener info de conversión si ya existe
+            if (!string.IsNullOrEmpty(ResultOutput) && ResultOutput.Contains("Conversión"))
+            {
+                sb.Append(ResultOutput);
+            }
+            
             sb.AppendLine($"=== Resultado: {CurrentResult.AlgorithmName} ===");
             sb.AppendLine($"Posición Inicial: {CurrentResult.InitialPosition}");
             sb.AppendLine($"Límites: {MinCylinder} - {MaxCylinder}");
-            sb.AppendLine($"Dirección: {(CurrentResult.Direction == "up" ? "Ascendente (Right)" : "Descendente (Left)")}");
-            sb.AppendLine($"Movimiento Total: {CurrentResult.TotalHeadMovement}");
-            sb.AppendLine($"Tiempo Promedio: {CurrentResult.AverageSeekTime:F2}");
+            sb.AppendLine($"Dirección: {(CurrentResult.Direction == "up" ? "Ascendente (↑)" : "Descendente (↓)")}");
+            sb.AppendLine($"Movimiento Total: {CurrentResult.TotalHeadMovement} cilindros");
+            sb.AppendLine($"Tiempo Promedio: {CurrentResult.AverageSeekTime:F2} cilindros/petición");
+            
+            // Agregar información de tiempos si está disponible
+            if (CurrentResult.AccessTime != null)
+            {
+                sb.AppendLine();
+                sb.AppendLine("=== Tiempos de Acceso ===");
+                sb.AppendLine(CurrentResult.AccessTime.ToDetailedString());
+            }
+            
             ResultOutput = sb.ToString();
 
             // Generar Tabla
@@ -159,25 +270,6 @@ namespace AppEntradaSalidaDESO.ViewModels
             // Añadir paso inicial
             StepsTable.Add(new StepRow(0, "-", currentPos, 0, 0, "Inicio"));
 
-            // Reconstruir pasos a partir del ProcessingOrder
-            // Nota: Esto asume que ProcessingOrder tiene la secuencia exacta de visitas.
-            // Algunos algoritmos como SCAN pueden tener pasos intermedios (ir al extremo) que quizá no estén en ProcessingOrder si solo guarda peticiones atendidas.
-            // Para ser 100% precisos con algoritmos como SCAN que tocan extremos, lo ideal sería que el algoritmo devolviera la lista de "Puntos Visitados".
-            // Revisando ExerciseResult.cs, tiene ProcessingOrder (List<int>).
-            // Si SCAN va a 199 pero nadie pidió 199, ¿está en ProcessingOrder?
-            // Mirando SCANAlgorithm.cs: "result.ProcessingOrder.Add(request);" -> Solo añade peticiones.
-            // SCANAlgorithm también hace "currentPosition = MAX_CYLINDER;" pero NO lo añade a ProcessingOrder.
-            // ESTO ES UN PROBLEMA para la reconstrucción exacta desde fuera.
-            
-            // SOLUCIÓN: Usar la lista de steps de texto para visualización rápida O modificar ExerciseResult para incluir "Path" completo.
-            // Dado que el usuario pidió tabla, modificaré ExerciseResult y Algoritmos es lo más correcto, 
-            // pero para esta iteración rápida, intentaré parsear o simplemente mostrar lo que tenemos.
-            
-            // Mejor enfoque: La visualización de tabla debe ser fiel al algoritmo.
-            // Voy a modificar MainViewModel para que, por ahora, muestre las Peticiones Atendidas.
-            // Los movimientos "extra" de SCAN (ir al borde) se perderán en la tabla si solo uso ProcessingOrder,
-            // pero estarán en el texto. Para la tabla "Petición a Petición", es aceptable.
-            
             foreach (var target in CurrentResult.ProcessingOrder)
             {
                 int distance = Math.Abs(target - currentPos);
@@ -191,6 +283,57 @@ namespace AppEntradaSalidaDESO.ViewModels
                     target > currentPos ? "Arriba ↑" : "Abajo ↓"
                 ));
                 currentPos = target;
+            }
+        }
+
+        /// <summary>
+        /// Comando para calcular bloques por cilindro
+        /// </summary>
+        [RelayCommand]
+        private void CalculateBlocksPerCylinder()
+        {
+            try
+            {
+                var diskSpecs = new DiskSpecs(SectorsPerTrack, Cylinders, Faces, SectorSize, BlockSize);
+                BlocksPerCylinder = _calculationService.CalculateBlocksPerCylinder(diskSpecs);
+                
+                // Actualizar también SectorsPerBlock automáticamente
+                SectorsPerBlock = _calculationService.CalculateSectorsPerBlock(diskSpecs);
+                
+                ResultOutput = $"=== Cálculos de Geometría del Disco ===\n" +
+                              $"Bloques por cilindro: {BlocksPerCylinder:F2}\n" +
+                              $"Bloques por pista: {diskSpecs.BlocksPerTrack:F2}\n" +
+                              $"Bytes por pista: {diskSpecs.BytesPerTrack}\n" +
+                              $"Sectores por bloque: {SectorsPerBlock}";
+            }
+            catch (Exception ex)
+            {
+                ResultOutput = $"Error al calcular: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Comando para convertir un bloque específico a pista (para pruebas rápidas)
+        /// </summary>
+        [RelayCommand]
+        private void ConvertSingleBlock(string blockNumberStr)
+        {
+            try
+            {
+                if (int.TryParse(blockNumberStr, out int blockNumber))
+                {
+                    var diskSpecs = new DiskSpecs(SectorsPerTrack, Cylinders, Faces, SectorSize, BlockSize);
+                    int track = _calculationService.BlockToTrack(blockNumber, diskSpecs);
+                    ResultOutput = $"Conversión: Bloque {blockNumber} → Pista {track}";
+                }
+                else
+                {
+                    ResultOutput = "Error: Número de bloque inválido";
+                }
+            }
+            catch (Exception ex)
+            {
+                ResultOutput = $"Error en conversión: {ex.Message}";
             }
         }
     }
