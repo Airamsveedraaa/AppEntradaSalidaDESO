@@ -83,6 +83,12 @@ namespace AppEntradaSalidaDESO.ViewModels
         private int _sectorsPerBlock = 2;
 
         [ObservableProperty]
+        private bool _useManualServiceTime = false;
+
+        [ObservableProperty]
+        private double _manualServiceTime = 0.0;
+
+        [ObservableProperty]
         private ObservableCollection<StepRow> _stepsTable = new();
 
         public MainViewModel()
@@ -174,24 +180,26 @@ namespace AppEntradaSalidaDESO.ViewModels
                 }
 
                 // Preparar parámetros de tiempo para la SIMULACIÓN
+                // Preparar parámetros de tiempo para la SIMULACIÓN
                 double timePerTrack = SeekTimePerTrack;
                 double timePerRequest = 0.0; // Latencia + Transferencia
 
                 if (CalculateAccessTime)
                 {
-                    // Calcular Latencia Promedio + Tiempo de Transferencia
-                    // Latencia = (60000 / RPM) / 2
-                    // Transferencia = (60000 / RPM) * (SectorsPerBlock / SectorsPerTrack)
-                    // Nota: Para transferencia exacta necesitamos DiskSpecs si usamos conversión, o inputs manuales.
-                    // Usamos las propiedades del VM que ya tienen defaults.
-                    
-                    double rotationTimeMs = 60000.0 / Rpm;
-                    double latencyMs = rotationTimeMs / 2.0;
-                    
-                    // Si usamos conversión, SectorsPerBlock se calculó. Si no, usa el input directo.
-                    double transferMs = rotationTimeMs * ((double)SectorsPerBlock / SectorsPerTrack);
-                    
-                    timePerRequest = latencyMs + transferMs;
+                    if (UseManualServiceTime)
+                    {
+                        // Modo Manual: El usuario define el tiempo de servicio directo
+                        timePerRequest = ManualServiceTime;
+                    }
+                    else
+                    {
+                        // Modo Calculado (Geometría): Latencia Promedio + Tiempo de Transferencia
+                        double rotationTimeMs = 60000.0 / Rpm;
+                        double latencyMs = rotationTimeMs / 2.0;
+                        double transferMs = rotationTimeMs * ((double)SectorsPerBlock / SectorsPerTrack);
+                        
+                        timePerRequest = latencyMs + transferMs;
+                    }
                 }
 
                 // Execute algorithm (SIMULACIÓN con tiempos)

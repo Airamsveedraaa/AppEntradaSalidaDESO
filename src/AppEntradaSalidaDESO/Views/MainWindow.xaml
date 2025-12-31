@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AppEntradaSalidaDESO"
         xmlns:vm="clr-namespace:AppEntradaSalidaDESO.ViewModels"
+        xmlns:conv="clr-namespace:AppEntradaSalidaDESO.Converters"
         mc:Ignorable="d"
         Title="Simulador de Planificación de Discos - DESO" Height="750" Width="1100"
         WindowStartupLocation="CenterScreen">
@@ -18,6 +19,8 @@
         </Style>
         
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:InverseBooleanConverter x:Key="InverseBool"/>
+        <conv:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
     </Window.Resources>
 
     <Grid Margin="20">
@@ -145,35 +148,60 @@
                                       IsChecked="{Binding CalculateAccessTime}"
                                       Margin="0,5" FontWeight="SemiBold"/>
                             
+                            <StackPanel Margin="0,10,0,0">
+                                <TextBlock Text="Modo de Tiempo de Servicio" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
+                                <RadioButton Content="Calculado (RPM + Geometría)" 
+                                             IsChecked="{Binding UseManualServiceTime, Converter={StaticResource InverseBool}}" 
+                                             GroupName="TimeMode" Margin="0,2"/>
+                                <RadioButton Content="Manual (Fijo por Petición)" 
+                                             IsChecked="{Binding UseManualServiceTime}" 
+                                             GroupName="TimeMode" Margin="0,2"/>
+                            </StackPanel>
+
                             <Grid Margin="0,10" IsEnabled="{Binding CalculateAccessTime}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+                                
+                                <!-- Panel para Modo Manual -->
+                                <StackPanel Grid.Column="0" Visibility="{Binding UseManualServiceTime, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="Tiempo servicio (ms)" FontSize="11" Margin="0,0,0,3"/>
+                                    <TextBox Text="{Binding ManualServiceTime}" Padding="5" FontSize="12"/>
+                                </StackPanel>
 
-                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                <!-- Panel para Modo Calculado (RPM) -->
+                                <StackPanel Grid.Column="0" Visibility="{Binding UseManualServiceTime, Converter={StaticResource InverseBoolToVis}}">
                                     <TextBlock Text="Tiempo búsqueda (ms/pista)" FontSize="11" Margin="0,0,0,3"/>
                                     <TextBox Text="{Binding SeekTimePerTrack}" Padding="5" FontSize="12"/>
                                 </StackPanel>
 
-                                <StackPanel Grid.Row="0" Grid.Column="2">
+                                <StackPanel Grid.Column="2" Visibility="{Binding UseManualServiceTime, Converter={StaticResource InverseBoolToVis}}">
                                     <TextBlock Text="RPM del disco" FontSize="11" Margin="0,0,0,3"/>
                                     <TextBox Text="{Binding RPM}" Padding="5" FontSize="12"/>
                                 </StackPanel>
-
-                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,5,0,0">
-                                    <TextBlock Text="Sectores/bloque" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox Text="{Binding SectorsPerBlock}" Padding="5" FontSize="12"/>
-                                </StackPanel>
                             </Grid>
 
-                            <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="Gray" Margin="0,5">
-                                <Run Text="Nota: Los sectores/bloque se calculan automáticamente si usas conversión de bloques."/>
+                            <StackPanel Visibility="{Binding UseManualServiceTime, Converter={StaticResource InverseBoolToVis}}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Sectores/bloque" FontSize="11" Margin="0,0,0,3"/>
+                                        <TextBox Text="{Binding SectorsPerBlock}" Padding="5" FontSize="12"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="Gray" Margin="0,5">
+                                    <Run Text="Nota: Los sectores/bloque se calculan automáticamente si usas conversión de bloques."/>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="#555" Margin="0,5" FontStyle="Italic">
+                                <Run Text="Tip: Para llegadas dinámicas, usa formato 'Pista:Tiempo' en el input (ej: 50:1.5)"/>
                             </TextBlock>
                         </StackPanel>
                     </GroupBox>
