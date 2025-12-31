@@ -56,10 +56,20 @@ namespace AppEntradaSalidaDESO.ViewModels
         [ObservableProperty]
         private double _timePerRequest = 0.0;
 
+        [ObservableProperty]
+        private int _nStep = 2;
+
 
 
         [ObservableProperty]
         private ObservableCollection<StepRow> _stepsTable = new();
+
+        [ObservableProperty]
+        private List<AlgorithmStep>? _visualizationSteps;
+
+        public List<string> AlgorithmNames => _algorithmService.GetAlgorithmNames().ToList();
+
+        public bool IsScanNSelected => SelectedAlgorithmName == "SCAN-N";
 
         public MainViewModel()
         {
@@ -75,6 +85,7 @@ namespace AppEntradaSalidaDESO.ViewModels
             {
                 var alg = _algorithmService.GetAlgorithm(value);
                 IsDirectionRequired = alg?.RequiresDirection ?? false;
+                OnPropertyChanged(nameof(IsScanNSelected));
             }
         }
 
@@ -85,8 +96,17 @@ namespace AppEntradaSalidaDESO.ViewModels
             {
                 if (string.IsNullOrWhiteSpace(SelectedAlgorithmName)) return;
 
+                if (string.IsNullOrWhiteSpace(SelectedAlgorithmName)) return;
+                
                 // Parse requests (pueden ser bloques o pistas, formato Track:Time opcional)
-                var inputRequests = ParseRequests(RequestsInput);
+                var inputRequests = ParseRequests(RequestsInput, out List<string> errors);
+                
+                if (errors.Count > 0)
+                {
+                    ResultOutput = "Errores de formato en la entrada:\n- " + string.Join("\n- ", errors);
+                    return;
+                }
+
                 if (inputRequests.Count == 0)
                 {
                     ResultOutput = "Error: Por favor introduce al menos una petición de disco válida.";
@@ -123,12 +143,28 @@ namespace AppEntradaSalidaDESO.ViewModels
                 // Se toman directamente los valores de la UI
                 double timePerTrack = TimePerTrack;
                 double timePerRequest = TimePerRequest;
+
+                // Ejecutar el algoritmo
+                var result = algorithm.Execute(
+                    InitialPosition,
+                    requests,
+                    MinCylinder,
+                    MaxCylinder,
+                    SelectedDirection ?? "up",
+                    timePerTrack,
+                    timePerRequest,
+                    NStep
+                );
+
+                CurrentResult = result;
                 
                 // Format output
                 // Format output
                 ResultOutput = "";
                 
-                FormatResultOutput();
+                FormatResultOutput(); // This method now uses CurrentResult
+                VisualizationSteps = result.DetailedSteps; // For the graph
+                
             }
             catch (Exception ex)
             {
@@ -141,25 +177,37 @@ namespace AppEntradaSalidaDESO.ViewModels
             return !string.IsNullOrWhiteSpace(SelectedAlgorithmName) && !string.IsNullOrWhiteSpace(RequestsInput);
         }
 
-        private List<DiskRequest> ParseRequests(string input)
+        private List<DiskRequest> ParseRequests(string input, out List<string> errors)
         {
             var list = new List<DiskRequest>();
+            errors = new List<string>();
             if (string.IsNullOrWhiteSpace(input)) return list;
 
             var parts = input.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
             int order = 1;
             foreach (var part in parts)
             {
-                // Formato admitido: "100" o "100:0.5" (Pista:Tiempo)
                 var segments = part.Split(':');
                 if (int.TryParse(segments[0], out int pos))
                 {
                     double time = 0.0;
-                    if (segments.Length > 1 && double.TryParse(segments[1], out double t))
+                    if (segments.Length > 1)
                     {
-                        time = t;
+                        if (double.TryParse(segments[1], out double t))
+                        {
+                            time = t;
+                        }
+                        else
+                        {
+                            errors.Add($"'{part}': Tiempo inválido");
+                            continue;
+                        }
                     }
                     list.Add(new DiskRequest(pos, order++, time));
+                }
+                else
+                {
+                    errors.Add($"'{part}': Pista inválida");
                 }
             }
             return list;
@@ -215,7 +263,9 @@ namespace AppEntradaSalidaDESO.ViewModels
                         step.Distance, 
                         totalDistance, 
                         step.To > step.From ? "↑" : (step.To < step.From ? "↓" : "-"),
-                        step.Instant // Timestamp al INICIO del movimiento
+                        step.Instant, // Timestamp al INICIO del movimiento
+                        step.Remaining != null ? string.Join(", ", step.Remaining) : "",
+                        step.Buffer != null ? string.Join(", ", step.Buffer) : ""
                     ));
                 }
             }
@@ -248,7 +298,13 @@ namespace AppEntradaSalidaDESO.ViewModels
 
 
 
+        [RelayCommand]
+        private void OpenCalculator()
+        {
+            var calcWindow = new Views.GeometryCalculatorWindow();
+            calcWindow.Show();
+        }
     }
 
-    public record StepRow(int Step, object From, int To, int Distance, int Accumulator, string Direction, double Instant = 0.0);
+    public record StepRow(int Step, object From, int To, int Distance, int Accumulator, string Direction, double Instant = 0.0, string Queue = "", string Buffer = "");
 }

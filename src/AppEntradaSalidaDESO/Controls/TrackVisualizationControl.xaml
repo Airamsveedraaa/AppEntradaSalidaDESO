@@ -1,0 +1,29 @@
+<UserControl x:Class="AppEntradaSalidaDESO.Controls.TrackVisualizationControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="600">
+    <Border BorderBrush="#DDD" BorderThickness="1" Background="White" CornerRadius="5" Padding="10">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Chart Area -->
+            <!-- Using a Grid to overlay axis lines if needed -->
+            <Grid Grid.Row="0">
+                <!-- Y Axis Labels Container (Left) -->
+                <Canvas x:Name="YAxisCanvas" Width="30" HorizontalAlignment="Left" Background="Transparent"/>
+                
+                <!-- Main Graph Canvas -->
+                <Canvas x:Name="GraphCanvas" Margin="30,0,0,0" Background="#FAFAFA" ClipToBounds="True" SizeChanged="GraphCanvas_SizeChanged"/>
+            </Grid>
+
+            <!-- X Axis Labels (Bottom) -->
+            <Canvas x:Name="XAxisCanvas" Grid.Row="1" Height="20" Margin="40,5,10,0"/>
+        </Grid>
+    </Border>
+</UserControl>

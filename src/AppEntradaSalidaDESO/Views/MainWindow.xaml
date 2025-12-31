@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:AppEntradaSalidaDESO"
         xmlns:vm="clr-namespace:AppEntradaSalidaDESO.ViewModels"
         xmlns:conv="clr-namespace:AppEntradaSalidaDESO.Converters"
+        xmlns:controls="clr-namespace:AppEntradaSalidaDESO.Controls"
         mc:Ignorable="d"
         Title="Simulador de Planificación de Discos - DESO" Height="750" Width="1100"
         WindowStartupLocation="CenterScreen">
@@ -33,13 +34,26 @@
         <Border Grid.Column="0" Background="#F5F5F5" Padding="15" CornerRadius="8">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <TextBlock Text="Configuración del Ejercicio" FontSize="20" FontWeight="Bold" Margin="0,0,0,15"/>
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Configuración del Ejercicio" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Command="{Binding OpenCalculatorCommand}" Content="🛠️ Conversor" Padding="8,4" Background="#EEE" BorderBrush="#AAA"/>
+                    </Grid>
 
                     <!-- Algoritmo -->
                     <TextBlock Text="Algoritmo" Style="{StaticResource LabelStyle}"/>
                     <ComboBox ItemsSource="{Binding Algorithms}" 
                               SelectedItem="{Binding SelectedAlgorithmName}"
                               Padding="10" FontSize="14"/>
+
+                    <!-- N Step (Condicional) -->
+                    <StackPanel Visibility="{Binding IsScanNSelected, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Tamaño del paso (N)" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Text="{Binding NStep}" Padding="5" FontSize="14" ToolTip="Número de peticiones a atender por lote"/>
+                    </StackPanel>
 
                     <!-- Peticiones -->
                     <TextBlock Text="Peticiones (separadas por comas)" Style="{StaticResource LabelStyle}"/>
@@ -116,16 +130,27 @@
         <!-- Panel de Resultados -->
         <Grid Grid.Column="1" Margin="20,0,0,0">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/> <!-- Title -->
+                <RowDefinition Height="250"/>  <!-- Visualization Graph -->
+                <RowDefinition Height="150"/>  <!-- Text Output -->
+                <RowDefinition Height="*"/>    <!-- DataGrid -->
             </Grid.RowDefinitions>
 
-            <TextBlock Text="Resultados de la Simulación" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+            <TextBlock Text="Resultados de la Simulación" FontSize="20" FontWeight="Bold" Margin="0,0,0,5"/>
 
-            <TextBox Grid.Row="1" 
+            <!-- Visualization Graph -->
+            <Border Grid.Row="1" Margin="0,0,0,10" BorderBrush="#EEE" BorderThickness="1" CornerRadius="5">
+                <controls:TrackVisualizationControl 
+                    Steps="{Binding VisualizationSteps}"
+                    MaxTrack="{Binding MaxCylinder}"
+                    MinTrack="{Binding MinCylinder}"
+                    Background="White"/>
+            </Border>
+
+            <!-- Text Output -->
+            <TextBox Grid.Row="2" 
                      Text="{Binding ResultOutput, Mode=OneWay}" 
                      IsReadOnly="True" 
-                     Height="150"
                      VerticalScrollBarVisibility="Auto" 
                      FontFamily="Consolas" 
                      FontSize="13" 
@@ -134,7 +159,8 @@
                      TextWrapping="Wrap"
                      Margin="0,0,0,10"/>
                      
-            <DataGrid Grid.Row="1" Margin="0,160,0,0"
+            <!-- Table -->
+            <DataGrid Grid.Row="3"
                       ItemsSource="{Binding StepsTable}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
@@ -148,16 +174,27 @@
                     <DataGridTextColumn Header="Tiempo" Binding="{Binding Instant, StringFormat=N2}" Width="60" FontWeight="Bold"/>
                     <DataGridTextColumn Header="Pos. Actual" Binding="{Binding From}" Width="80"/>
                     <DataGridTextColumn Header="Petición" Binding="{Binding To}" Width="100" FontWeight="Bold"/>
-                    <DataGridTextColumn Header="Distancia" Binding="{Binding Distance}" Width="100"/>
-                    <DataGridTextColumn Header="Acumulado" Binding="{Binding Accumulator}" Width="100"/>
-                    <DataGridTextColumn Header="Dirección" Binding="{Binding Direction}" Width="*">
+                    <DataGridTextColumn Header="Distancia" Binding="{Binding Distance}" Width="80"/>
+                    <DataGridTextColumn Header="Acumulado" Binding="{Binding Accumulator}" Width="80"/>
+                    <DataGridTextColumn Header="Cola Pendiente" Binding="{Binding Queue}" Width="120">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#555"/>
+                                <Setter Property="FontSize" Value="11"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="TextWrapping" Value="Wrap"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
+                    <DataGridTextColumn Header="Buffer" Binding="{Binding Buffer}" Width="80">
+                         <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Foreground" Value="#D2691E"/> <!-- Chocolate color for buffer -->
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Dirección" Binding="{Binding Direction}" Width="*"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Grid>

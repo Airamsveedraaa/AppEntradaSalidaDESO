@@ -15,7 +15,7 @@ namespace AppEntradaSalidaDESO.Algorithms
         public string Description => "Circular SCAN - Atiende en una dirección, al llegar al final salta al inicio sin atender.";
         public bool RequiresDirection => true;
 
-        public ExerciseResult Execute(int initialPosition, List<DiskRequest> requests, int minCylinder, int maxCylinder, string direction = "up", double timePerTrack = 1.0, double timePerRequest = 0.0)
+        public ExerciseResult Execute(int initialPosition, List<DiskRequest> requests, int minCylinder, int maxCylinder, string direction = "up", double timePerTrack = 1.0, double timePerRequest = 0.0, int nStep = 2)
         {
             var result = new ExerciseResult(Name, initialPosition, requests.Select(r => r.Position).ToList());
             result.Direction = direction;

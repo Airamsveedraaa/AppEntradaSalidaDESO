@@ -21,7 +21,8 @@ namespace AppEntradaSalidaDESO.Services
                 { "LOOK", new LOOKAlgorithm() },
                 { "C-LOOK", new CLOOKAlgorithm() },
                 { "F-SCAN", new FSCANAlgorithm() },
-                { "F-LOOK", new FLOOKAlgorithm() }
+                { "F-LOOK", new FLOOKAlgorithm() },
+                { "SCAN-N", new SCANNAlgorithm() }
             };
         }
 

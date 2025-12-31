@@ -1,113 +1,91 @@
 # Simulador de Ejercicios - Entrada/Salida DESO
 
-Aplicación de escritorio en C# WPF para practicar algoritmos de planificación de E/S de disco.
+Aplicación de escritorio en C# WPF para practicar algoritmos de planificación de E/S de disco, diseñada para resolver ejercicios académicos de la asignatura DESO.
 
 ## 📋 Descripción
 
-Esta aplicación permite a los estudiantes practicar y comprender los diferentes algoritmos de planificación de entrada/salida de disco utilizados en sistemas operativos. Incluye visualizaciones interactivas, soluciones paso a paso y seguimiento de estadísticas.
+Esta aplicación permite a los estudiantes practicar y comprender los diferentes algoritmos de planificación de entrada/salida de disco utilizados en sistemas operativos. Incluye visualizaciones interactivas, soporte para tiempos de llegada, conversor de bloques y soluciones paso a paso detalladas.
 
 ## 🎯 Algoritmos Implementados
 
-- **FCFS** (First Come First Served) - Atiende las peticiones en orden de llegada
-- **SSTF** (Shortest Seek Time First) - Atiende primero la petición más cercana
-- **SCAN** (Elevador) - Recorre en una dirección hasta el final, luego invierte
-- **C-SCAN** (Circular SCAN) - Recorre en una dirección y vuelve al inicio circularmente
-- **LOOK** - Como SCAN pero solo va hasta la última petición
-- **C-LOOK** - Como C-SCAN pero solo va hasta la última petición
-- **F-SCAN** - Congela peticiones entrantes, procesa por lotes (equivale a SCAN estático)
-- **F-LOOK** - Variante congelada de LOOK (equivale a LOOK estático)
-- **Mejora**: Soporte para límites de disco dinámicos (min/max cylinder configurable)
+- **FCFS** (First Come First Served)
+- **SSTF** (Shortest Seek Time First)
+- **SCAN** (Elevador)
+- **C-SCAN** (Circular SCAN)
+- **LOOK**
+- **C-LOOK**
+- **F-SCAN** (Freeze SCAN)
+- **F-LOOK** (Freeze LOOK)
+- **SCAN-N** (N-Step SCAN) - **¡Nuevo!** Procesa peticiones en lotes de tamaño N.
 
-## 🏗️ Estructura del Proyecto
+## ✨ Nuevas Características (v2.0)
 
-```
-AppEntradaSalidaDESO/
-├── Models/              # Modelos de datos
-│   ├── DiskRequest.cs
-│   ├── ExerciseResult.cs
-│   └── Statistics.cs
-├── Algorithms/          # Implementación de algoritmos
-│   ├── IDiskSchedulingAlgorithm.cs
-│   ├── FCFSAlgorithm.cs
-│   ├── SSTFAlgorithm.cs
-│   ├── SCANAlgorithm.cs
-│   ├── CSCANAlgorithm.cs
-│   ├── LOOKAlgorithm.cs
-│   └── CLOOKAlgorithm.cs
-├── Services/            # Servicios de la aplicación
-│   └── AlgorithmService.cs
-├── ViewModels/          # ViewModels (MVVM)
-├── Views/               # Vistas XAML
-└── Resources/           # Recursos (imágenes, estilos)
-```
+### 1. Simulación Temporal Realista
+- Soporte para **Tiempos de Llegada**: Formato `Pista:Tiempo` (ej: `50:1.5`).
+- Configuración de tiempos detallada: **Tiempo por Pista** (Búsqueda) y **Tiempo por Petición** (Transferencia/Latencia).
+- Simulación de "intercepciones" en algoritmos como SCAN o LOOK cuando llegan nuevas peticiones durante el movimiento.
+
+### 2. Visualización Gráfica
+- **Gráfico de Movimiento**: Visualización tipo "line chart" que muestra el recorrido del cabezal en el tiempo.
+- Indicadores visuales para saltos circulares (líneas rojas punteadas).
+
+### 3. Herramientas de Cálculo
+- **Conversor de Geometría**: Nueva ventana (`🛠️ Conversor`) para calcular:
+    - Bloques por Cilindro.
+    - Conversión automática de **Número de Bloque -> Número de Pista**.
+    - Configurable: Sectores, Caras, Tamaño de Sector/Bloque.
+
+### 4. Tabla de Resultados Mejorada
+- Columnas detalladas: **Cola Pendiente** y **Buffer**.
+- Muestra el estado exacto de las peticiones en espera en cada paso de la simulación.
 
 ## 🚀 Requisitos
 
 - Windows 10/11
-- .NET 10.0 SDK (Solo para compilar)
-- **Para usuarios finales**: Solo necesitan el archivo `.exe` generado.
+- .NET 8.0 Desktop Runtime (Si se usa la versión dependiente del framework)
+- **Para usuarios finales**: Solo necesitan el archivo `.exe` generado (versión autocontenida).
 
-## 📦 Instalación y Ejecución Rápida
+## 📦 Instalación y Ejecución
 
-### Opción A (Desarrolladores)
-1. Clonar y ejecutar:
+### Opción A (Usuarios - Release)
+1. Descarga el archivo `.zip` de la última release.
+2. Descomprímelo.
+3. Ejecuta `AppEntradaSalidaDESO.exe` o usa el script `INSTALAR (Crear Acceso Directo).bat`.
+
+### Opción B (Desarrolladores)
+1. Clonar el repositorio:
 ```bash
 git clone https://github.com/Airamsveedraaa/AppEntradaSalidaDESO.git
-cd AppEntradaSalidaDESO
-dotnet run
 ```
-
-### Opción B (Generar Ejecutable para "Producción")
-Para crear una aplicación portátil (sin necesidad de instalar .NET en la máquina destino) o un ejecutable simple:
-
-1. Ejecuta el comando de publicación:
+2. Abrir en Visual Studio 2022 o VS Code.
+3. Ejecutar:
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+dotnet restore
+dotnet run --project src/AppEntradaSalidaDESO
 ```
-2. El archivo `AppEntradaSalidaDESO.exe` estará en:
-   `bin\Release\net10.0-windows\win-x64\publish\`
 
-Este archivo `.exe` es todo lo que necesitas compartir.
+## 🛠️ Generación de Instalador (Script)
+
+El proyecto incluye scripts automatizados para generar una release portátil:
+
+1. Ejecuta el archivo `GenerarZip.bat` en la raíz del proyecto.
+2. El script compilará, publicará y empaquetará la aplicación en un `.zip` dentro de la carpeta `Release_Build`.
 
 ## 🖥️ Interfaz de Usuario
 
-La aplicación cuenta con una interfaz gráfica moderna (WPF):
-
 1. **Configuración**:
-   - Selecciona el algoritmo (FCFS, SSTF, SCAN, etc.).
-   - Introduce la cola de peticiones (ej: `98, 183, 37`).
-   - Define los límites del disco (`min` y `max`).
-   - Elige la posición inicial del cabezal.
+   - Selecciona el algoritmo y el paso (N) si aplica.
+   - Introduce peticiones (`98, 183` o `98:0, 183:5`).
+   - Define límites y tiempos.
 
 2. **Resultados**:
-   - Visualiza métricas clave (Movimiento Total, Tiempo Promedio).
-   - Tabla detallada paso a paso con distancias y direcciones.
-
-## 📚 Características Completadas
-
-- [x] **8 Algoritmos**: FCFS, SSTF, SCAN, C-SCAN, LOOK, C-LOOK, F-SCAN, F-LOOK.
-- [x] **Configuración Dinámica**: Soporte para discos de cualquier tamaño.
-- [x] **Interfaz Gráfica**: Panel de control intuitivo y tabla de resultados.
-- [x] **Visualización**: Detalle paso a paso de cada movimiento.
-- [x] **Icono Personalizado**: Identidad visual básica.
-
-## 🛠️ Desarrollo
-
-Si quieres contribuir:
-1. Abre el proyecto en Visual Studio 2022 o VS Code.
-2. La arquitectura sigue el patrón **MVVM**:
-   - `ViewModels/MainViewModel.cs`: Lógica de presentación.
-   - `Views/MainWindow.xaml`: Interfaz de usuario.
-   - `Algorithms/`: Lógica del núcleo.
+   - Gráfico visual del recorrido.
+   - Estadísticas completas (Tiempos totales, pistas recorridas).
+   - Tabla paso a paso con estado de colas.
 
 ## 📄 Licencia
 
-Este proyecto está distribuido bajo la licencia **GNU General Public License v3 (GPLv3)**. Consulta `LICENSE.md`.
-
-## 📧 Contacto
-
-Proyecto creado para la asignatura de Diseño de Sistemas Operativos (DESO).
+Este proyecto está distribuido bajo la licencia **GNU General Public License v3 (GPLv3)**.
 
 ---
-
-**Nota**: Este es un proyecto educativo en desarrollo activo.
+**Nota**: Proyecto educativo para la asignatura de Diseño de Sistemas Operativos (DESO).

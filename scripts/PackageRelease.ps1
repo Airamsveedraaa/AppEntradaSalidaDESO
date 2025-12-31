@@ -8,7 +8,7 @@ Write-Host ""
 # Configuracion
 $ProjectRoot = Resolve-Path "$PSScriptRoot\.."
 $OutputDir = "$ProjectRoot\Release_Build"
-$PublishDir = "$ProjectRoot\bin\Release\net10.0-windows\win-x64\publish"
+$PublishDir = "$ProjectRoot\bin\Release\net8.0-windows\win-x64\publish"
 
 # 1. Limpiar releases anteriores
 if (Test-Path $OutputDir) {
@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 2.1 Copiar al directorio de salida manualmente (para evitar errores de -o con WPF)
-$DefaultPublishDir = "$ProjectRoot\src\AppEntradaSalidaDESO\bin\Release\net10.0-windows\win-x64\publish"
+$DefaultPublishDir = "$ProjectRoot\src\AppEntradaSalidaDESO\bin\Release\net8.0-windows\win-x64\publish"
 Write-Host "[*] Copiando archivos desde $DefaultPublishDir..." -ForegroundColor Green
 Copy-Item -Path "$DefaultPublishDir\*" -Destination "$OutputDir\App" -Recurse -Force
 
