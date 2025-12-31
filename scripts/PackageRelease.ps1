@@ -30,6 +30,7 @@ if ($LASTEXITCODE -ne 0) {
 # 2.1 Copiar al directorio de salida manualmente (para evitar errores de -o con WPF)
 $DefaultPublishDir = "$ProjectRoot\src\AppEntradaSalidaDESO\bin\Release\net8.0-windows\win-x64\publish"
 Write-Host "[*] Copiando archivos desde $DefaultPublishDir..." -ForegroundColor Green
+New-Item -ItemType Directory -Force -Path "$OutputDir\App" | Out-Null
 Copy-Item -Path "$DefaultPublishDir\*" -Destination "$OutputDir\App" -Recurse -Force
 
 # 3. Copiar script de instalacion
