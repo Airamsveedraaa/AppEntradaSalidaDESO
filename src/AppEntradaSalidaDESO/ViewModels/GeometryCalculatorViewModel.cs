@@ -28,6 +28,25 @@ namespace AppEntradaSalidaDESO.ViewModels
         [ObservableProperty]
         private string _specsSummary = string.Empty;
 
+        // Nuevos campos calculados
+        [ObservableProperty]
+        private long _totalSectors;
+
+        [ObservableProperty]
+        private long _totalCapacityBytes;
+
+        [ObservableProperty]
+        private double _totalCapacityMB;
+
+        [ObservableProperty]
+        private double _totalCapacityGB;
+
+        [ObservableProperty]
+        private int _sectorsPerCylinder;
+
+        [ObservableProperty]
+        private long _bytesPerCylinder;
+
         public GeometryCalculatorViewModel()
         {
             _calculationService = new DiskCalculationService();
@@ -40,20 +59,44 @@ namespace AppEntradaSalidaDESO.ViewModels
              UpdateCalculations();
         }
 
+        partial void OnSpecsChanged(DiskSpecs value)
+        {
+            UpdateCalculations();
+        }
+
+        partial void OnBlockInputsChanged(string value)
+        {
+            UpdateCalculations();
+        }
+
         private void UpdateCalculations()
         {
             try 
             {
-                // Update derived stats
+                // Cálculos básicos
                 BlocksPerCylinder = _calculationService.CalculateBlocksPerCylinder(Specs);
                 SpecsSummary = Specs.ToString();
+
+                // Cálculos derivados (fórmulas del PDF)
+                SectorsPerCylinder = Specs.SectorsPerTrack * Specs.Faces;
+                
+                // Total de sectores = Cilindros × Caras × Sectores/Pista
+                TotalSectors = (long)Specs.Cylinders * Specs.Faces * Specs.SectorsPerTrack;
+                
+                // Capacidad total = Total sectores × Tamaño sector
+                TotalCapacityBytes = TotalSectors * Specs.SectorSize;
+                TotalCapacityMB = TotalCapacityBytes / (1024.0 * 1024.0);
+                TotalCapacityGB = TotalCapacityMB / 1024.0;
+
+                // Bytes por cilindro
+                BytesPerCylinder = SectorsPerCylinder * Specs.SectorSize;
 
                 // Convert Blocks if input exists
                 if (!string.IsNullOrWhiteSpace(BlockInputs))
                 {
                     var parts = BlockInputs.Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries);
                     var sb = new StringBuilder();
-                    sb.AppendLine("Conversión Bloque -> Pista:");
+                    sb.AppendLine("Conversión Bloque → Pista:");
                     sb.AppendLine("---------------------------");
 
                     foreach (var part in parts)
