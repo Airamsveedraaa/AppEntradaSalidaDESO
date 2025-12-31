@@ -80,127 +80,23 @@
                         </ComboBox>
                     </StackPanel>
 
-                    <!-- Geometría del Disco -->
-                    <GroupBox Header="Geometría del Disco" Margin="0,15,0,0" Padding="10" BorderBrush="#CCC">
+                    <!-- Reglas de Tiempo (Simplificado) -->
+                    <GroupBox Header="Reglas de Tiempo" Margin="0,15,0,0" Padding="10" BorderBrush="#CCC">
                         <StackPanel>
-                            <CheckBox Content="Usar conversión de bloques a pistas" 
-                                      IsChecked="{Binding UseBlockConversion}"
-                                      Margin="0,5" FontWeight="SemiBold"/>
-                            
-                            <Grid Margin="0,10" IsEnabled="{Binding UseBlockConversion}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+                            <TextBlock Text="Regla de Conteo de Instantes" Style="{StaticResource LabelStyle}" Margin="0,0,0,5"/>
+                            <ComboBox ItemsSource="{Binding TimeRules}" 
+                                      SelectedItem="{Binding SelectedTimeRule}"
+                                      Padding="10" FontSize="14"/>
 
-                                <StackPanel Grid.Row="0" Grid.Column="0">
-                                    <TextBlock Text="Sectores/pista" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox Text="{Binding SectorsPerTrack}" Padding="5" FontSize="12"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="0" Grid.Column="2">
-                                    <TextBlock Text="Cilindros" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox Text="{Binding Cylinders}" Padding="5" FontSize="12"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,5,0,0">
-                                    <TextBlock Text="Caras" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox Text="{Binding Faces}" Padding="5" FontSize="12"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,5,0,0">
-                                    <TextBlock Text="Tamaño sector (B)" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox Text="{Binding SectorSize}" Padding="5" FontSize="12"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,5,0,0">
-                                    <TextBlock Text="Tamaño bloque (B)" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox Text="{Binding BlockSize}" Padding="5" FontSize="12"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,5,0,0">
-                                    <TextBlock Text="Bloques/cilindro" FontSize="11" Margin="0,0,0,3"/>
-                                    <Border Background="#E8F4FF" Padding="5" CornerRadius="3">
-                                        <TextBlock Text="{Binding BlocksPerCylinder, StringFormat=F2}" 
-                                                   FontWeight="Bold" Foreground="#007ACC" 
-                                                   VerticalAlignment="Center" FontSize="12"/>
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <Button Content="Calcular Bloques por Cilindro" 
-                                    Command="{Binding CalculateBlocksPerCylinderCommand}"
-                                    Margin="0,10,0,0" Padding="8" FontSize="12"
-                                    IsEnabled="{Binding UseBlockConversion}"/>
-                        </StackPanel>
-                    </GroupBox>
-
-                    <!-- Cálculos de Tiempo -->
-                    <GroupBox Header="Cálculos de Tiempo" Margin="0,10,0,0" Padding="10" BorderBrush="#CCC">
-                        <StackPanel>
-                            <CheckBox Content="Calcular tiempos de acceso" 
-                                      IsChecked="{Binding CalculateAccessTime}"
-                                      Margin="0,5" FontWeight="SemiBold"/>
-                            
-                            <StackPanel Margin="0,10,0,0">
-                                <TextBlock Text="Modo de Tiempo de Servicio" FontSize="11" FontWeight="Bold" Margin="0,0,0,5"/>
-                                <RadioButton Content="Calculado (RPM + Geometría)" 
-                                             IsChecked="{Binding UseManualServiceTime, Converter={StaticResource InverseBool}}" 
-                                             GroupName="TimeMode" Margin="0,2"/>
-                                <RadioButton Content="Manual (Fijo por Petición)" 
-                                             IsChecked="{Binding UseManualServiceTime}" 
-                                             GroupName="TimeMode" Margin="0,2"/>
-                            </StackPanel>
-
-                            <Grid Margin="0,10" IsEnabled="{Binding CalculateAccessTime}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                            <StackPanel Visibility="{Binding IsCustomTimeRule, Converter={StaticResource BoolToVis}}" Margin="0,10,0,0">
+                                <TextBlock Text="Costo por Pista (ms/track)" FontSize="11" Margin="0,0,0,3"/>
+                                <TextBox Text="{Binding CustomSeekTime}" Padding="5" FontSize="12"/>
                                 
-                                <!-- Panel para Modo Manual -->
-                                <StackPanel Grid.Column="0" Visibility="{Binding UseManualServiceTime, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="Tiempo servicio (ms)" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox Text="{Binding ManualServiceTime}" Padding="5" FontSize="12"/>
-                                </StackPanel>
-
-                                <!-- Panel para Modo Calculado (RPM) -->
-                                <StackPanel Grid.Column="0" Visibility="{Binding UseManualServiceTime, Converter={StaticResource InverseBoolToVis}}">
-                                    <TextBlock Text="Tiempo búsqueda (ms/pista)" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox Text="{Binding SeekTimePerTrack}" Padding="5" FontSize="12"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="2" Visibility="{Binding UseManualServiceTime, Converter={StaticResource InverseBoolToVis}}">
-                                    <TextBlock Text="RPM del disco" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox Text="{Binding RPM}" Padding="5" FontSize="12"/>
-                                </StackPanel>
-                            </Grid>
-
-                            <StackPanel Visibility="{Binding UseManualServiceTime, Converter={StaticResource InverseBoolToVis}}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="10"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Sectores/bloque" FontSize="11" Margin="0,0,0,3"/>
-                                        <TextBox Text="{Binding SectorsPerBlock}" Padding="5" FontSize="12"/>
-                                    </StackPanel>
-                                </Grid>
-                                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="Gray" Margin="0,5">
-                                    <Run Text="Nota: Los sectores/bloque se calculan automáticamente si usas conversión de bloques."/>
-                                </TextBlock>
+                                <TextBlock Text="Costo Servcio por Petición (ms)" FontSize="11" Margin="0,10,0,3"/>
+                                <TextBox Text="{Binding CustomServiceTime}" Padding="5" FontSize="12"/>
                             </StackPanel>
 
-                            <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="#555" Margin="0,5" FontStyle="Italic">
+                            <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="#555" Margin="0,10,0,5" FontStyle="Italic">
                                 <Run Text="Tip: Para llegadas dinámicas, usa formato 'Pista:Tiempo' en el input (ej: 50:1.5)"/>
                             </TextBlock>
                         </StackPanel>

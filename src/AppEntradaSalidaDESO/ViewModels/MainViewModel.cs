@@ -69,24 +69,26 @@ namespace AppEntradaSalidaDESO.ViewModels
         [ObservableProperty]
         private double _blocksPerCylinder = 0;
 
-        // Propiedades para cálculos de tiempo
+        // Propiedades de configuración de Tiempo (Simplificadas)
         [ObservableProperty]
-        private bool _calculateAccessTime = false;
+        private ObservableCollection<string> _timeRules = new() 
+        { 
+            "1 u.t. por petición", 
+            "0.1 u.t. por pista", 
+            "Personalizado" 
+        };
 
         [ObservableProperty]
-        private double _seekTimePerTrack = 1.0;
+        [NotifyPropertyChangedFor(nameof(IsCustomTimeRule))]
+        private string _selectedTimeRule = "1 u.t. por petición";
+
+        public bool IsCustomTimeRule => SelectedTimeRule == "Personalizado";
 
         [ObservableProperty]
-        private int _rpm = 7200;
+        private double _customSeekTime = 0.1;
 
         [ObservableProperty]
-        private int _sectorsPerBlock = 2;
-
-        [ObservableProperty]
-        private bool _useManualServiceTime = false;
-
-        [ObservableProperty]
-        private double _manualServiceTime = 0.0;
+        private double _customServiceTime = 0.0;
 
         [ObservableProperty]
         private ObservableCollection<StepRow> _stepsTable = new();
@@ -179,49 +181,32 @@ namespace AppEntradaSalidaDESO.ViewModels
                     return;
                 }
 
-                // Preparar parámetros de tiempo para la SIMULACIÓN
-                // Preparar parámetros de tiempo para la SIMULACIÓN
-                double timePerTrack = SeekTimePerTrack;
-                double timePerRequest = 0.0; // Latencia + Transferencia
+                // Preparar parámetros de tiempo según la Regla Seleccionada
+                // Regla 1: 1 unidad por petición (independiente distancia) -> Seek=0, Service=1
+                // Regla 2: 0.1 unidad por pista (independiente servicio) -> Seek=0.1, Service=0
+                // Regla 3: Personalizado -> Seek=User, Service=User
 
-                if (CalculateAccessTime)
-                {
-                    if (UseManualServiceTime)
-                    {
-                        // Modo Manual: El usuario define el tiempo de servicio directo
-                        timePerRequest = ManualServiceTime;
-                    }
-                    else
-                    {
-                        // Modo Calculado (Geometría): Latencia Promedio + Tiempo de Transferencia
-                        double rotationTimeMs = 60000.0 / Rpm;
-                        double latencyMs = rotationTimeMs / 2.0;
-                        double transferMs = rotationTimeMs * ((double)SectorsPerBlock / SectorsPerTrack);
-                        
-                        timePerRequest = latencyMs + transferMs;
-                    }
-                }
+                double timePerTrack = 0.0;
+                double timePerRequest = 0.0;
 
-                // Execute algorithm (SIMULACIÓN con tiempos)
-                CurrentResult = algorithm.Execute(InitialPosition, requests, MinCylinder, MaxCylinder, SelectedDirection, timePerTrack, timePerRequest);
-                
-                // Los tiempos ya vienen calculados en CurrentResult.TotalTime por la simulación
-                // Pero podemos enriquecer el AccessTimeResult para desglose teórico si se desea.
-                // Por coherencia, usaremos el TotalTime de la simulación como el "Access Time Real" en el reporte.
-                // Crearemos un AccessTimeResult basado en la simulación.
-                
-                if (CalculateAccessTime && CurrentResult != null)
+                switch (SelectedTimeRule)
                 {
-                     CurrentResult.AccessTime = new AccessTimeResult
-                     {
-                         SeekTimeMs = CurrentResult.TotalHeadMovement * timePerTrack,
-                         // El resto del tiempo total es "Latency + Transfer + Idle"
-                         // TotalTime = SeekTime + (NumRequests * TimePerRequest) + IdleTime
-                         TotalTimeMs = CurrentResult.TotalTime,
-                         // Aproximaciones para display:
-                         LatencyTimeMs = requests.Count * (60000.0 / Rpm) / 2.0,
-                         TransferTimeMs = requests.Count * (60000.0 / Rpm) * ((double)SectorsPerBlock / SectorsPerTrack)
-                     };
+                    case "1 u.t. por petición":
+                        timePerTrack = 0.0;
+                        timePerRequest = 1.0;
+                        break;
+                    case "0.1 u.t. por pista":
+                        timePerTrack = 0.1;
+                        timePerRequest = 0.0;
+                        break;
+                    case "Personalizado":
+                        timePerTrack = CustomSeekTime;
+                        timePerRequest = CustomServiceTime;
+                        break;
+                    default: // Por defecto 1 u.t. por petición
+                        timePerTrack = 0.0;
+                        timePerRequest = 1.0;
+                        break;
                 }
                 
                 // Format output
