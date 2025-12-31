@@ -6,107 +6,134 @@ using System.Linq;
 namespace AppEntradaSalidaDESO.Algorithms
 {
     /// <summary>
-    /// LOOK - Similar a SCAN pero solo va hasta la última petición, no hasta el extremo
+    /// LOOK - Similar a SCAN pero solo llega hasta la última petición (no al extremo)
     /// </summary>
     public class LOOKAlgorithm : IDiskSchedulingAlgorithm
     {
         public string Name => "LOOK";
-        public string Description => "LOOK - Como SCAN pero solo va hasta la última petición";
+        public string Description => "Como SCAN, pero el cabezal solo llega hasta la última petición en esa dirección.";
         public bool RequiresDirection => true;
 
-        public ExerciseResult Execute(int initialPosition, List<int> requests, int minCylinder, int maxCylinder, string direction = "up")
+        public ExerciseResult Execute(int initialPosition, List<DiskRequest> requests, int minCylinder, int maxCylinder, string direction = "up", double timePerTrack = 1.0, double timePerRequest = 0.0)
         {
-            var result = new ExerciseResult(Name, initialPosition, requests) { Direction = direction };
+            var result = new ExerciseResult(Name, initialPosition, requests.Select(r => r.Position).ToList());
+            result.Direction = direction;
             int currentPosition = initialPosition;
+            double currentTime = 0.0;
             int totalMovement = 0;
+            string currentDirection = direction;
 
-            result.AddStep($"Posición inicial del cabezal: {initialPosition}");
-            result.AddStep($"Cola de peticiones: [{string.Join(", ", requests)}]");
-            result.AddStep($"Dirección inicial: {(direction == "up" ? "Hacia arriba (↑)" : "Hacia abajo (↓)")}");
-            result.AddStep("Algoritmo LOOK: Se mueve en una dirección hasta la última petición, luego invierte");
-            result.AddStep("");
+            result.AddStep($"Posición inicial: {initialPosition}, Dirección: {currentDirection}");
 
-            var sortedRequests = requests.OrderBy(r => r).ToList();
-            var leftRequests = sortedRequests.Where(r => r < initialPosition).OrderByDescending(r => r).ToList();
-            var rightRequests = sortedRequests.Where(r => r >= initialPosition).OrderBy(r => r).ToList();
+            var pendingQueue = SimulationHelper.CloneRequests(requests).OrderBy(r => r.ArrivalTime).ThenBy(r => r.OriginalIndex).ToList();
+            var activeQueue = new List<DiskRequest>();
+            var processedRequests = new List<DiskRequest>();
 
-            int step = 1;
-
-            if (direction == "up")
+            while (activeQueue.Count > 0 || pendingQueue.Count > 0)
             {
-                // Primero hacia arriba
-                foreach (var request in rightRequests)
+                // 1. Mover peticiones
+                while (pendingQueue.Count > 0 && pendingQueue[0].ArrivalTime <= currentTime)
                 {
-                    int movement = Math.Abs(request - currentPosition);
-                    totalMovement += movement;
-                    result.ProcessingOrder.Add(request);
-                    result.AddStep($"Paso {step}: Mover de {currentPosition} a {request} (↑)");
-                    result.AddStep($"  Movimiento: {movement} cilindros | Acumulado: {totalMovement}");
-                    currentPosition = request;
-                    step++;
+                    activeQueue.Add(pendingQueue[0]);
+                    pendingQueue.RemoveAt(0);
                 }
 
-                // Cambiar dirección si hay peticiones pendientes
-                if (leftRequests.Count > 0)
+                // 2. Esperar
+                if (activeQueue.Count == 0 && pendingQueue.Count > 0)
                 {
-                    result.AddStep($"Cambio de dirección: Ahora hacia abajo (↓)");
-                    result.AddStep("");
-
-                    // Luego hacia abajo
-                    foreach (var request in leftRequests)
+                    double nextArrival = pendingQueue[0].ArrivalTime;
+                    if (currentTime < nextArrival)
                     {
-                        int movement = Math.Abs(request - currentPosition);
-                        totalMovement += movement;
-                        result.ProcessingOrder.Add(request);
-                        result.AddStep($"Paso {step}: Mover de {currentPosition} a {request} (↓)");
-                        result.AddStep($"  Movimiento: {movement} cilindros | Acumulado: {totalMovement}");
-                        currentPosition = request;
-                        step++;
+                        result.AddStep($"T={currentTime:F2}: Esperando hasta T={nextArrival:F2}...");
+                        currentTime = nextArrival;
+                        continue;
                     }
                 }
-            }
-            else // direction == "down"
-            {
-                // Primero hacia abajo
-                foreach (var request in leftRequests)
+
+                if (activeQueue.Count == 0) break;
+
+                bool isAscending = currentDirection == "up";
+
+                // 3. Buscar peticiones en dirección actual
+                var requestsInDirection = activeQueue.Where(r => 
+                    isAscending ? r.Position >= currentPosition : r.Position <= currentPosition)
+                    .OrderBy(r => Math.Abs(r.Position - currentPosition))
+                    .ToList();
+
+                DiskRequest targetRequest = null;
+                int targetTrack = -1;
+
+                if (requestsInDirection.Count > 0)
                 {
-                    int movement = Math.Abs(request - currentPosition);
-                    totalMovement += movement;
-                    result.ProcessingOrder.Add(request);
-                    result.AddStep($"Paso {step}: Mover de {currentPosition} a {request} (↓)");
-                    result.AddStep($"  Movimiento: {movement} cilindros | Acumulado: {totalMovement}");
-                    currentPosition = request;
-                    step++;
+                    targetRequest = requestsInDirection[0];
+                    targetTrack = targetRequest.Position;
                 }
-
-                // Cambiar dirección si hay peticiones pendientes
-                if (rightRequests.Count > 0)
+                else
                 {
-                    result.AddStep($"Cambio de dirección: Ahora hacia arriba (↑)");
-                    result.AddStep("");
-
-                    // Luego hacia arriba
-                    foreach (var request in rightRequests)
+                    // No hay peticiones en esta dirección.
+                    // En LOOK, si no hay más adelante, invertimos dirección INMEDIATAMENTE.
+                    // No vamos al límite.
+                    if (activeQueue.Count > 0)
                     {
-                        int movement = Math.Abs(request - currentPosition);
-                        totalMovement += movement;
-                        result.ProcessingOrder.Add(request);
-                        result.AddStep($"Paso {step}: Mover de {currentPosition} a {request} (↑)");
-                        result.AddStep($"  Movimiento: {movement} cilindros | Acumulado: {totalMovement}");
-                        currentPosition = request;
-                        step++;
+                        currentDirection = isAscending ? "down" : "up";
+                        result.AddStep($"T={currentTime:F2}: No hay peticiones en dirección {direction}. Invirtiendo a {currentDirection}.");
+                        continue; // Reevaluar
+                    }
+                    else
+                    {
+                        break;
                     }
                 }
+
+                // 4. Verificar Intercepciones
+                var intercept = SimulationHelper.FindEarliestIntercept(
+                    currentPosition,
+                    targetTrack,
+                    currentTime,
+                    timePerTrack,
+                    pendingQueue,
+                    currentDirection);
+
+                bool isIntercepted = false;
+                if (intercept != null)
+                {
+                    targetRequest = intercept.Request;
+                    targetTrack = targetRequest.Position;
+                    isIntercepted = true;
+                }
+
+                // 5. Mover y Procesar
+                int distance = Math.Abs(targetTrack - currentPosition);
+                double travelTime = distance * timePerTrack;
+
+                var step = new AlgorithmStep
+                {
+                    From = currentPosition,
+                    To = targetTrack,
+                    Distance = distance,
+                    Instant = currentTime,
+                    ArrivalInstant = targetRequest.ArrivalTime,
+                    Remaining = activeQueue.Where(r => r != targetRequest).Select(r => r.Position).ToList()
+                };
+                result.DetailedSteps.Add(step);
+
+                currentTime += travelTime; // Viajar
+                currentTime += timePerRequest; // Procesar
+                totalMovement += distance;
+                currentPosition = targetTrack;
+
+                result.ProcessingOrder.Add(targetTrack);
+                result.AddStep($"T={step.Instant:F2} -> T={currentTime:F2}: Atender {targetTrack} (Dist: {distance}){(isIntercepted ? " [INTERCEPT]" : "")}");
+
+                if (isIntercepted) pendingQueue.Remove(targetRequest);
+                else activeQueue.Remove(targetRequest);
+                
+                processedRequests.Add(targetRequest);
             }
 
             result.TotalHeadMovement = totalMovement;
+            result.TotalTime = currentTime;
             result.CalculateMetrics();
-
-            result.AddStep("");
-            result.AddStep("=== RESUMEN ===");
-            result.AddStep($"Orden de atención: [{string.Join(" → ", result.ProcessingOrder)}]");
-            result.AddStep($"Movimiento total del cabezal: {totalMovement} cilindros");
-            result.AddStep($"Tiempo promedio de búsqueda: {result.AverageSeekTime:F2} cilindros");
 
             return result;
         }

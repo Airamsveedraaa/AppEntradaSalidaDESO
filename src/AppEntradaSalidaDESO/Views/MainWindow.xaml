@@ -223,8 +223,9 @@
                       Background="White"
                       Padding="5">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="#" Binding="{Binding Step}" Width="50"/>
-                    <DataGridTextColumn Header="Pos. Actual" Binding="{Binding From}" Width="100"/>
+                    <DataGridTextColumn Header="#" Binding="{Binding Step}" Width="40"/>
+                    <DataGridTextColumn Header="Tiempo" Binding="{Binding Instant, StringFormat=N2}" Width="60" FontWeight="Bold"/>
+                    <DataGridTextColumn Header="Pos. Actual" Binding="{Binding From}" Width="80"/>
                     <DataGridTextColumn Header="Petición" Binding="{Binding To}" Width="100" FontWeight="Bold"/>
                     <DataGridTextColumn Header="Distancia" Binding="{Binding Distance}" Width="100"/>
                     <DataGridTextColumn Header="Acumulado" Binding="{Binding Accumulator}" Width="100"/>

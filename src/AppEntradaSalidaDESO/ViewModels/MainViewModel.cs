@@ -109,7 +109,7 @@ namespace AppEntradaSalidaDESO.ViewModels
             {
                 if (string.IsNullOrWhiteSpace(SelectedAlgorithmName)) return;
 
-                // Parse requests (pueden ser bloques o pistas)
+                // Parse requests (pueden ser bloques o pistas, formato Track:Time opcional)
                 var inputRequests = ParseRequests(RequestsInput);
                 if (inputRequests.Count == 0)
                 {
@@ -118,7 +118,7 @@ namespace AppEntradaSalidaDESO.ViewModels
                 }
 
                 // Convertir bloques a pistas si está habilitado
-                List<int> requests;
+                List<DiskRequest> requests;
                 string conversionInfo = "";
                 
                 if (UseBlockConversion)
@@ -126,13 +126,16 @@ namespace AppEntradaSalidaDESO.ViewModels
                     try
                     {
                         var diskSpecs = new DiskSpecs(SectorsPerTrack, Cylinders, Faces, SectorSize, BlockSize);
-                        requests = _calculationService.BlocksToTracks(inputRequests, diskSpecs);
+                        var trackInts = _calculationService.BlocksToTracks(inputRequests.Select(r => r.Position).ToList(), diskSpecs);
                         
-                        // Agregar información de conversión
+                        // Reconstruct DiskRequests with converted tracks but original times
+                        requests = new List<DiskRequest>();
                         conversionInfo = "=== Conversión de Bloques a Pistas ===\n";
+                        
                         for (int i = 0; i < inputRequests.Count; i++)
                         {
-                            conversionInfo += $"  Bloque {inputRequests[i]} → Pista {requests[i]}\n";
+                            requests.Add(new DiskRequest(trackInts[i], inputRequests[i].Order, inputRequests[i].ArrivalTime));
+                            conversionInfo += $"  Bloque {inputRequests[i].Position} (T={inputRequests[i].ArrivalTime}) → Pista {trackInts[i]}\n";
                         }
                         conversionInfo += "\n";
                     }
@@ -156,9 +159,9 @@ namespace AppEntradaSalidaDESO.ViewModels
 
                 foreach (var req in requests)
                 {
-                    if (req < MinCylinder || req > MaxCylinder)
+                    if (req.Position < MinCylinder || req.Position > MaxCylinder)
                     {
-                        ResultOutput = $"Error: La petición al cilindro {req} está fuera de los límites ({MinCylinder}-{MaxCylinder}).";
+                        ResultOutput = $"Error: La petición al cilindro {req.Position} está fuera de los límites ({MinCylinder}-{MaxCylinder}).";
                         return;
                     }
                 }
@@ -170,36 +173,57 @@ namespace AppEntradaSalidaDESO.ViewModels
                     return;
                 }
 
-                // Execute algorithm
-                CurrentResult = algorithm.Execute(InitialPosition, requests, MinCylinder, MaxCylinder, SelectedDirection);
+                // Preparar parámetros de tiempo para la SIMULACIÓN
+                double timePerTrack = SeekTimePerTrack;
+                double timePerRequest = 0.0; // Latencia + Transferencia
+
+                if (CalculateAccessTime)
+                {
+                    // Calcular Latencia Promedio + Tiempo de Transferencia
+                    // Latencia = (60000 / RPM) / 2
+                    // Transferencia = (60000 / RPM) * (SectorsPerBlock / SectorsPerTrack)
+                    // Nota: Para transferencia exacta necesitamos DiskSpecs si usamos conversión, o inputs manuales.
+                    // Usamos las propiedades del VM que ya tienen defaults.
+                    
+                    double rotationTimeMs = 60000.0 / Rpm;
+                    double latencyMs = rotationTimeMs / 2.0;
+                    
+                    // Si usamos conversión, SectorsPerBlock se calculó. Si no, usa el input directo.
+                    double transferMs = rotationTimeMs * ((double)SectorsPerBlock / SectorsPerTrack);
+                    
+                    timePerRequest = latencyMs + transferMs;
+                }
+
+                // Execute algorithm (SIMULACIÓN con tiempos)
+                CurrentResult = algorithm.Execute(InitialPosition, requests, MinCylinder, MaxCylinder, SelectedDirection, timePerTrack, timePerRequest);
                 
-                // Calcular tiempos de acceso si está habilitado
+                // Los tiempos ya vienen calculados en CurrentResult.TotalTime por la simulación
+                // Pero podemos enriquecer el AccessTimeResult para desglose teórico si se desea.
+                // Por coherencia, usaremos el TotalTime de la simulación como el "Access Time Real" en el reporte.
+                // Crearemos un AccessTimeResult basado en la simulación.
+                
                 if (CalculateAccessTime && CurrentResult != null)
                 {
-                    try
-                    {
-                        var timeSpecs = new TimeSpecs(SeekTimePerTrack, Rpm, SectorsPerBlock);
-                        var diskSpecs = UseBlockConversion 
-                            ? new DiskSpecs(SectorsPerTrack, Cylinders, Faces, SectorSize, BlockSize)
-                            : null;
-
-                        CurrentResult.AccessTime = _calculationService.CalculateAccessTime(
-                            CurrentResult.TotalHeadMovement,
-                            CurrentResult.ProcessingOrder.Count,
-                            timeSpecs,
-                            diskSpecs
-                        );
-                    }
-                    catch (Exception ex)
-                    {
-                        conversionInfo += $"\nAdvertencia: No se pudieron calcular los tiempos de acceso: {ex.Message}\n";
-                    }
+                     CurrentResult.AccessTime = new AccessTimeResult
+                     {
+                         SeekTimeMs = CurrentResult.TotalHeadMovement * timePerTrack,
+                         // El resto del tiempo total es "Latency + Transfer + Idle"
+                         // TotalTime = SeekTime + (NumRequests * TimePerRequest) + IdleTime
+                         TotalTimeMs = CurrentResult.TotalTime,
+                         // Aproximaciones para display:
+                         LatencyTimeMs = requests.Count * (60000.0 / Rpm) / 2.0,
+                         TransferTimeMs = requests.Count * (60000.0 / Rpm) * ((double)SectorsPerBlock / SectorsPerTrack)
+                     };
                 }
                 
-                // Format output (incluir info de conversión si existe)
+                // Format output
                 if (!string.IsNullOrEmpty(conversionInfo))
                 {
                     ResultOutput = conversionInfo;
+                }
+                else 
+                {
+                    ResultOutput = "";
                 }
                 
                 FormatResultOutput();
@@ -215,17 +239,25 @@ namespace AppEntradaSalidaDESO.ViewModels
             return !string.IsNullOrWhiteSpace(SelectedAlgorithmName) && !string.IsNullOrWhiteSpace(RequestsInput);
         }
 
-        private List<int> ParseRequests(string input)
+        private List<DiskRequest> ParseRequests(string input)
         {
-            var list = new List<int>();
+            var list = new List<DiskRequest>();
             if (string.IsNullOrWhiteSpace(input)) return list;
 
-            var parts = input.Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            var parts = input.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            int order = 1;
             foreach (var part in parts)
             {
-                if (int.TryParse(part, out int val))
+                // Formato admitido: "100" o "100:0.5" (Pista:Tiempo)
+                var segments = part.Split(':');
+                if (int.TryParse(segments[0], out int pos))
                 {
-                    list.Add(val);
+                    double time = 0.0;
+                    if (segments.Length > 1 && double.TryParse(segments[1], out double t))
+                    {
+                        time = t;
+                    }
+                    list.Add(new DiskRequest(pos, order++, time));
                 }
             }
             return list;
@@ -249,13 +281,13 @@ namespace AppEntradaSalidaDESO.ViewModels
             sb.AppendLine($"Límites: {MinCylinder} - {MaxCylinder}");
             sb.AppendLine($"Dirección: {(CurrentResult.Direction == "up" ? "Ascendente (↑)" : "Descendente (↓)")}");
             sb.AppendLine($"Movimiento Total: {CurrentResult.TotalHeadMovement} cilindros");
-            sb.AppendLine($"Tiempo Promedio: {CurrentResult.AverageSeekTime:F2} cilindros/petición");
+            sb.AppendLine($"Tiempo Total Simulación: {CurrentResult.TotalTime:F2} ms"); // Nuevo
             
             // Agregar información de tiempos si está disponible
             if (CurrentResult.AccessTime != null)
             {
                 sb.AppendLine();
-                sb.AppendLine("=== Tiempos de Acceso ===");
+                sb.AppendLine("=== Tiempos de Acceso (Estimados) ===");
                 sb.AppendLine(CurrentResult.AccessTime.ToDetailedString());
             }
             
@@ -263,28 +295,61 @@ namespace AppEntradaSalidaDESO.ViewModels
 
             // Generar Tabla
             StepsTable.Clear();
-            int currentPos = CurrentResult.InitialPosition;
-            int stepNum = 1;
-            int totalDistance = 0;
-
-            // Añadir paso inicial
-            StepsTable.Add(new StepRow(0, "-", currentPos, 0, 0, "Inicio"));
-
-            foreach (var target in CurrentResult.ProcessingOrder)
+            
+            // Si tenemos pasos detallados (Fase 2), usarlos
+            if (CurrentResult.DetailedSteps.Count > 0)
             {
-                int distance = Math.Abs(target - currentPos);
-                totalDistance += distance;
-                StepsTable.Add(new StepRow(
-                    stepNum++, 
-                    currentPos, 
-                    target, 
-                    distance, 
-                    totalDistance, 
-                    target > currentPos ? "Arriba ↑" : "Abajo ↓"
-                ));
-                currentPos = target;
+                int stepNum = 1;
+                int totalDistance = 0;
+                
+                // Mostrar estado inicial
+                StepsTable.Add(new StepRow(0, "-", CurrentResult.InitialPosition, 0, 0, "Inicio", 0.0));
+
+                foreach (var step in CurrentResult.DetailedSteps)
+                {
+                    totalDistance += step.Distance;
+                    string note = "";
+                    if (step.Distance == 0 && step.Remaining != null && step.Remaining.Count > 0)
+                        note = " (Wait/Jump)"; // O salto sin movimiento
+
+                    StepsTable.Add(new StepRow(
+                        stepNum++, 
+                        step.From, 
+                        step.To, 
+                        step.Distance, 
+                        totalDistance, 
+                        step.To > step.From ? "↑" : (step.To < step.From ? "↓" : "-"),
+                        step.Instant // Timestamp al INICIO del movimiento
+                    ));
+                }
+            }
+            else
+            {
+                // Fallback a lógica simple (Fase 1)
+                int currentPos = CurrentResult.InitialPosition;
+                int stepNum = 1;
+                int totalDistance = 0;
+
+                StepsTable.Add(new StepRow(0, "-", currentPos, 0, 0, "Inicio", 0.0));
+
+                foreach (var target in CurrentResult.ProcessingOrder)
+                {
+                    int distance = Math.Abs(target - currentPos);
+                    totalDistance += distance;
+                    StepsTable.Add(new StepRow(
+                        stepNum++, 
+                        currentPos, 
+                        target, 
+                        distance, 
+                        totalDistance, 
+                        target > currentPos ? "Arriba ↑" : "Abajo ↓",
+                        0.0
+                    ));
+                    currentPos = target;
+                }
             }
         }
+
 
         /// <summary>
         /// Comando para calcular bloques por cilindro
@@ -338,5 +403,5 @@ namespace AppEntradaSalidaDESO.ViewModels
         }
     }
 
-    public record StepRow(int Step, object From, int To, int Distance, int Accumulator, string Direction);
+    public record StepRow(int Step, object From, int To, int Distance, int Accumulator, string Direction, double Instant = 0.0);
 }

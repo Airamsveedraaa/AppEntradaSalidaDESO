@@ -12,8 +12,10 @@ namespace AppEntradaSalidaDESO.Models
         public List<int> RequestQueue { get; set; } = new();
         public List<int> ProcessingOrder { get; set; } = new();
         public List<string> Steps { get; set; } = new();
+        public List<AlgorithmStep> DetailedSteps { get; set; } = new();
         public int TotalHeadMovement { get; set; }
         public double AverageSeekTime { get; set; }
+        public double TotalTime { get; set; }
         public string Direction { get; set; } = string.Empty;
 
         /// <summary>

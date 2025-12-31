@@ -6,131 +6,179 @@ using System.Linq;
 namespace AppEntradaSalidaDESO.Algorithms
 {
     /// <summary>
-    /// C-SCAN (Circular SCAN) - Se mueve en una dirección, al llegar al final vuelve al inicio
+    /// C-SCAN (Circular SCAN) - Se mueve en una dirección llegando al extremo y salta al inicio
+    /// Soporta tiempos de llegada dinámicos e intercepciones
     /// </summary>
     public class CSCANAlgorithm : IDiskSchedulingAlgorithm
     {
         public string Name => "C-SCAN";
-        public string Description => "C-SCAN (Circular SCAN) - Recorre en una dirección, vuelve al inicio circularmente";
+        public string Description => "Circular SCAN - Atiende en una dirección, al llegar al final salta al inicio sin atender.";
         public bool RequiresDirection => true;
 
-        public ExerciseResult Execute(int initialPosition, List<int> requests, int minCylinder, int maxCylinder, string direction = "up")
+        public ExerciseResult Execute(int initialPosition, List<DiskRequest> requests, int minCylinder, int maxCylinder, string direction = "up", double timePerTrack = 1.0, double timePerRequest = 0.0)
         {
-            var result = new ExerciseResult(Name, initialPosition, requests) { Direction = direction };
+            var result = new ExerciseResult(Name, initialPosition, requests.Select(r => r.Position).ToList());
+            result.Direction = direction;
             int currentPosition = initialPosition;
+            double currentTime = 0.0;
             int totalMovement = 0;
+            string currentDirection = direction; // Siempre mantiene la misma dirección lógica (ej: up)
 
-            result.AddStep($"Posición inicial del cabezal: {initialPosition}");
-            result.AddStep($"Cola de peticiones: [{string.Join(", ", requests)}]");
-            result.AddStep($"Dirección: {(direction == "up" ? "Hacia arriba (↑)" : "Hacia abajo (↓)")}");
-            result.AddStep("Algoritmo C-SCAN: Se mueve en una dirección, al llegar al final vuelve al inicio");
-            result.AddStep("");
+            result.AddStep($"Posición inicial: {initialPosition}, Dirección: {currentDirection}");
 
-            var sortedRequests = requests.OrderBy(r => r).ToList();
-            var leftRequests = sortedRequests.Where(r => r < initialPosition).OrderBy(r => r).ToList();
-            var rightRequests = sortedRequests.Where(r => r >= initialPosition).OrderBy(r => r).ToList();
+            var pendingQueue = SimulationHelper.CloneRequests(requests).OrderBy(r => r.ArrivalTime).ThenBy(r => r.OriginalIndex).ToList();
+            var activeQueue = new List<DiskRequest>();
+            var processedRequests = new List<DiskRequest>();
 
-            int step = 1;
-
-            if (direction == "up")
+            while (activeQueue.Count > 0 || pendingQueue.Count > 0)
             {
-                // Primero hacia arriba
-                foreach (var request in rightRequests)
+                // 1. Mover peticiones llegadas a active
+                while (pendingQueue.Count > 0 && pendingQueue[0].ArrivalTime <= currentTime)
                 {
-                    int movement = Math.Abs(request - currentPosition);
-                    totalMovement += movement;
-                    result.ProcessingOrder.Add(request);
-                    result.AddStep($"Paso {step}: Mover de {currentPosition} a {request} (↑)");
-                    result.AddStep($"  Movimiento: {movement} cilindros | Acumulado: {totalMovement}");
-                    currentPosition = request;
-                    step++;
+                    activeQueue.Add(pendingQueue[0]);
+                    pendingQueue.RemoveAt(0);
                 }
 
-                // Si hay peticiones pendientes, ir al final y volver al inicio
-                if (leftRequests.Count > 0)
+                // 2. Esperar si es necesario
+                if (activeQueue.Count == 0 && pendingQueue.Count > 0)
                 {
-                    int movementToEnd = maxCylinder - currentPosition;
-                    totalMovement += movementToEnd;
-                    result.AddStep($"Paso {step}: Mover hasta el extremo superior ({maxCylinder})");
-                    result.AddStep($"  Movimiento: {movementToEnd} cilindros | Acumulado: {totalMovement}");
-                    step++;
-
-                    int returnMovement = maxCylinder - minCylinder;
-                    totalMovement += returnMovement;
-                    result.AddStep($"Paso {step}: Retorno circular al inicio ({minCylinder})");
-                    result.AddStep($"  Movimiento: {returnMovement} cilindros | Acumulado: {totalMovement}");
-                    currentPosition = minCylinder;
-                    step++;
-
-                    result.AddStep("");
-
-                    // Atender peticiones desde el inicio
-                    foreach (var request in leftRequests)
+                    double nextArrival = pendingQueue[0].ArrivalTime;
+                    if (currentTime < nextArrival)
                     {
-                        int movement = Math.Abs(request - currentPosition);
-                        totalMovement += movement;
-                        result.ProcessingOrder.Add(request);
-                        result.AddStep($"Paso {step}: Mover de {currentPosition} a {request} (↑)");
-                        result.AddStep($"  Movimiento: {movement} cilindros | Acumulado: {totalMovement}");
-                        currentPosition = request;
-                        step++;
+                        result.AddStep($"T={currentTime:F2}: Esperando hasta T={nextArrival:F2}...");
+                        currentTime = nextArrival;
+                        continue;
                     }
                 }
-            }
-            else // direction == "down"
-            {
-                // Primero hacia abajo
-                foreach (var request in leftRequests.OrderByDescending(r => r))
+
+                if (activeQueue.Count == 0) break;
+
+                bool isAscending = currentDirection == "up";
+
+                // 3. Buscar peticiones en la dirección actual desde currentPosition
+                var requestsInDirection = activeQueue.Where(r => 
+                    isAscending ? r.Position >= currentPosition : r.Position <= currentPosition)
+                    .OrderBy(r => Math.Abs(r.Position - currentPosition))
+                    .ToList();
+
+                DiskRequest targetRequest = null;
+                int targetTrack = -1;
+                bool goingToLimit = false;
+
+                if (requestsInDirection.Count > 0)
                 {
-                    int movement = Math.Abs(request - currentPosition);
-                    totalMovement += movement;
-                    result.ProcessingOrder.Add(request);
-                    result.AddStep($"Paso {step}: Mover de {currentPosition} a {request} (↓)");
-                    result.AddStep($"  Movimiento: {movement} cilindros | Acumulado: {totalMovement}");
-                    currentPosition = request;
-                    step++;
+                    targetRequest = requestsInDirection[0];
+                    targetTrack = targetRequest.Position;
+
+                    if (targetTrack == currentPosition)
+                    {
+                        // Procesar immediately
+                    }
+                }
+                else
+                {
+                    // No hay peticiones en esta dirección desde la posición actual.
+                    // En C-SCAN, si no hay más adelante, debemos ir al LÍMITE FINAL, saltar al LÍMITE INICIAL y seguir.
+                    // Pero espera, ¿hay peticiones en "la vuelta" (detrás)?
+                    // Si activeQueue tiene items, y no están adelante, están atrás.
+                    if (activeQueue.Count > 0)
+                    {
+                        targetTrack = isAscending ? maxCylinder : minCylinder;
+                        goingToLimit = true;
+
+                        // Si ya estamos en el límite final, hacemos el SALTO
+                        if (currentPosition == targetTrack)
+                        {
+                            int startLimit = isAscending ? minCylinder : maxCylinder;
+                            // Salto mágico (a veces no cuenta distancia, o cuenta distancia completa)
+                            // En simuladores típicos, cuenta distancia 0 o distancia completa pero NO tiempo de servicio.
+                            // Asumiremos distancia física de retorno.
+                            int jumpDist = Math.Abs(targetTrack - startLimit);
+                            double jumpTime = jumpDist * timePerTrack; // El tiempo pasa al volver
+                            
+                            var jumpStep = new AlgorithmStep
+                            {
+                                From = currentPosition,
+                                To = startLimit,
+                                Distance = jumpDist,
+                                Instant = currentTime,
+                                ArrivalInstant = 0,
+                                Remaining = activeQueue.Select(r => r.Position).ToList()
+                            };
+                            result.DetailedSteps.Add(jumpStep);
+
+                            result.AddStep($"T={currentTime:F2} -> T={(currentTime+jumpTime):F2}: Salto circular de {currentPosition} a {startLimit} (Dist: {jumpDist})");
+                            
+                            totalMovement += jumpDist;
+                            currentTime += jumpTime;
+                            currentPosition = startLimit;
+                            continue; // Reevaluar desde el inicio
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
 
-                // Si hay peticiones pendientes, ir al inicio y volver al final
-                if (rightRequests.Count > 0)
+                // 4. Verificar Intercepciones
+                var intercept = SimulationHelper.FindEarliestIntercept(
+                    currentPosition,
+                    targetTrack,
+                    currentTime,
+                    timePerTrack,
+                    pendingQueue,
+                    currentDirection);
+
+                bool isIntercepted = false;
+                if (intercept != null)
                 {
-                    int movementToStart = currentPosition - minCylinder;
-                    totalMovement += movementToStart;
-                    result.AddStep($"Paso {step}: Mover hasta el extremo inferior ({minCylinder})");
-                    result.AddStep($"  Movimiento: {movementToStart} cilindros | Acumulado: {totalMovement}");
-                    step++;
+                    targetRequest = intercept.Request;
+                    targetTrack = targetRequest.Position;
+                    isIntercepted = true;
+                    goingToLimit = false;
+                }
 
-                    int returnMovement = maxCylinder - minCylinder;
-                    totalMovement += returnMovement;
-                    result.AddStep($"Paso {step}: Retorno circular al final ({maxCylinder})");
-                    result.AddStep($"  Movimiento: {returnMovement} cilindros | Acumulado: {totalMovement}");
-                    currentPosition = maxCylinder;
-                    step++;
+                // 5. Mover y Procesar
+                int distance = Math.Abs(targetTrack - currentPosition);
+                double travelTime = distance * timePerTrack;
 
-                    result.AddStep("");
+                var step = new AlgorithmStep
+                {
+                    From = currentPosition,
+                    To = targetTrack,
+                    Distance = distance,
+                    Instant = currentTime,
+                    ArrivalInstant = isIntercepted ? targetRequest.ArrivalTime : (goingToLimit ? 0 : targetRequest.ArrivalTime),
+                    Remaining = activeQueue.Where(r => r != targetRequest).Select(r => r.Position).ToList()
+                };
+                result.DetailedSteps.Add(step);
 
-                    // Atender peticiones desde el final
-                    foreach (var request in rightRequests.OrderByDescending(r => r))
-                    {
-                        int movement = Math.Abs(request - currentPosition);
-                        totalMovement += movement;
-                        result.ProcessingOrder.Add(request);
-                        result.AddStep($"Paso {step}: Mover de {currentPosition} a {request} (↓)");
-                        result.AddStep($"  Movimiento: {movement} cilindros | Acumulado: {totalMovement}");
-                        currentPosition = request;
-                        step++;
-                    }
+                currentTime += travelTime;
+                totalMovement += distance;
+                currentPosition = targetTrack;
+
+                if (goingToLimit && !isIntercepted)
+                {
+                    // Solo llegamos al límite final, en la siguiente iteración haremos el salto
+                    result.AddStep($"T={step.Instant:F2} -> T={currentTime:F2}: Mover al límite {targetTrack}");
+                }
+                else
+                {
+                    currentTime += timePerRequest;
+                    result.ProcessingOrder.Add(targetTrack);
+                    result.AddStep($"T={step.Instant:F2} -> T={currentTime:F2}: Atender {targetTrack} (Dist: {distance}){(isIntercepted ? " [INTERCEPT]" : "")}");
+
+                    if (isIntercepted) pendingQueue.Remove(targetRequest);
+                    else activeQueue.Remove(targetRequest);
+                    
+                    processedRequests.Add(targetRequest);
                 }
             }
 
             result.TotalHeadMovement = totalMovement;
+            result.TotalTime = currentTime;
             result.CalculateMetrics();
-
-            result.AddStep("");
-            result.AddStep("=== RESUMEN ===");
-            result.AddStep($"Orden de atención: [{string.Join(" → ", result.ProcessingOrder)}]");
-            result.AddStep($"Movimiento total del cabezal: {totalMovement} cilindros");
-            result.AddStep($"Tiempo promedio de búsqueda: {result.AverageSeekTime:F2} cilindros");
 
             return result;
         }
