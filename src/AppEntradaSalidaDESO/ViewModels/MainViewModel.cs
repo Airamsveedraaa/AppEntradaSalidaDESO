@@ -47,27 +47,7 @@ namespace AppEntradaSalidaDESO.ViewModels
         [ObservableProperty]
         private ExerciseResult? _currentResult;
 
-        // Propiedades para geometría del disco
-        [ObservableProperty]
-        private bool _useBlockConversion = false;
 
-        [ObservableProperty]
-        private int _sectorsPerTrack = 10;
-
-        [ObservableProperty]
-        private int _cylinders = 100;
-
-        [ObservableProperty]
-        private int _faces = 2;
-
-        [ObservableProperty]
-        private int _sectorSize = 512;
-
-        [ObservableProperty]
-        private int _blockSize = 1024;
-
-        [ObservableProperty]
-        private double _blocksPerCylinder = 0;
 
         // Propiedades de configuración de Tiempo (Simplificadas)
         [ObservableProperty]
@@ -125,38 +105,8 @@ namespace AppEntradaSalidaDESO.ViewModels
                     return;
                 }
 
-                // Convertir bloques a pistas si está habilitado
-                List<DiskRequest> requests;
-                string conversionInfo = "";
-                
-                if (UseBlockConversion)
-                {
-                    try
-                    {
-                        var diskSpecs = new DiskSpecs(SectorsPerTrack, Cylinders, Faces, SectorSize, BlockSize);
-                        var trackInts = _calculationService.BlocksToTracks(inputRequests.Select(r => r.Position).ToList(), diskSpecs);
-                        
-                        // Reconstruct DiskRequests with converted tracks but original times
-                        requests = new List<DiskRequest>();
-                        conversionInfo = "=== Conversión de Bloques a Pistas ===\n";
-                        
-                        for (int i = 0; i < inputRequests.Count; i++)
-                        {
-                            requests.Add(new DiskRequest(trackInts[i], inputRequests[i].Order, inputRequests[i].ArrivalTime));
-                            conversionInfo += $"  Bloque {inputRequests[i].Position} (T={inputRequests[i].ArrivalTime}) → Pista {trackInts[i]}\n";
-                        }
-                        conversionInfo += "\n";
-                    }
-                    catch (Exception ex)
-                    {
-                        ResultOutput = $"Error en conversión de bloques: {ex.Message}";
-                        return;
-                    }
-                }
-                else
-                {
-                    requests = inputRequests;
-                }
+                // (Conversión de bloques eliminada por simplificación)
+                List<DiskRequest> requests = inputRequests;
 
                 // Validaciones
                 if (InitialPosition < MinCylinder || InitialPosition > MaxCylinder)
@@ -210,14 +160,8 @@ namespace AppEntradaSalidaDESO.ViewModels
                 }
                 
                 // Format output
-                if (!string.IsNullOrEmpty(conversionInfo))
-                {
-                    ResultOutput = conversionInfo;
-                }
-                else 
-                {
-                    ResultOutput = "";
-                }
+                // Format output
+                ResultOutput = "";
                 
                 FormatResultOutput();
             }
@@ -263,11 +207,7 @@ namespace AppEntradaSalidaDESO.ViewModels
             // Generar Texto
             var sb = new StringBuilder();
             
-            // Mantener info de conversión si ya existe
-            if (!string.IsNullOrEmpty(ResultOutput) && ResultOutput.Contains("Conversión"))
-            {
-                sb.Append(ResultOutput);
-            }
+
             
             sb.AppendLine($"=== Resultado: {CurrentResult.AlgorithmName} ===");
             sb.AppendLine($"Posición Inicial: {CurrentResult.InitialPosition}");
@@ -301,9 +241,7 @@ namespace AppEntradaSalidaDESO.ViewModels
                 foreach (var step in CurrentResult.DetailedSteps)
                 {
                     totalDistance += step.Distance;
-                    string note = "";
-                    if (step.Distance == 0 && step.Remaining != null && step.Remaining.Count > 0)
-                        note = " (Wait/Jump)"; // O salto sin movimiento
+
 
                     StepsTable.Add(new StepRow(
                         stepNum++, 
@@ -344,56 +282,7 @@ namespace AppEntradaSalidaDESO.ViewModels
         }
 
 
-        /// <summary>
-        /// Comando para calcular bloques por cilindro
-        /// </summary>
-        [RelayCommand]
-        private void CalculateBlocksPerCylinder()
-        {
-            try
-            {
-                var diskSpecs = new DiskSpecs(SectorsPerTrack, Cylinders, Faces, SectorSize, BlockSize);
-                BlocksPerCylinder = _calculationService.CalculateBlocksPerCylinder(diskSpecs);
-                
-                // Actualizar también SectorsPerBlock automáticamente
-                SectorsPerBlock = _calculationService.CalculateSectorsPerBlock(diskSpecs);
-                
-                ResultOutput = $"=== Cálculos de Geometría del Disco ===\n" +
-                              $"Bloques por cilindro: {BlocksPerCylinder:F2}\n" +
-                              $"Bloques por pista: {diskSpecs.BlocksPerTrack:F2}\n" +
-                              $"Bytes por pista: {diskSpecs.BytesPerTrack}\n" +
-                              $"Sectores por bloque: {SectorsPerBlock}";
-            }
-            catch (Exception ex)
-            {
-                ResultOutput = $"Error al calcular: {ex.Message}";
-            }
-        }
 
-        /// <summary>
-        /// Comando para convertir un bloque específico a pista (para pruebas rápidas)
-        /// </summary>
-        [RelayCommand]
-        private void ConvertSingleBlock(string blockNumberStr)
-        {
-            try
-            {
-                if (int.TryParse(blockNumberStr, out int blockNumber))
-                {
-                    var diskSpecs = new DiskSpecs(SectorsPerTrack, Cylinders, Faces, SectorSize, BlockSize);
-                    int track = _calculationService.BlockToTrack(blockNumber, diskSpecs);
-                    ResultOutput = $"Conversión: Bloque {blockNumber} → Pista {track}";
-                }
-                else
-                {
-                    ResultOutput = "Error: Número de bloque inválido";
-                }
-            }
-            catch (Exception ex)
-            {
-                ResultOutput = $"Error en conversión: {ex.Message}";
-            }
-        }
     }
 
     public record StepRow(int Step, object From, int To, int Distance, int Accumulator, string Direction, double Instant = 0.0);

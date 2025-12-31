@@ -10,7 +10,7 @@ namespace AppEntradaSalidaDESO.Models
         public List<int> Remaining { get; set; } = new();
         public double Instant { get; set; }
         public double ArrivalInstant { get; set; }
-        public List<int> Buffer { get; set; } // Nullable, or empty if unused
+        public List<int> Buffer { get; set; } = new();
 
         public override string ToString()
         {
