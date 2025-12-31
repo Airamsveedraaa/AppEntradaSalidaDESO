@@ -89,10 +89,10 @@
                                       Padding="10" FontSize="14"/>
 
                             <StackPanel Visibility="{Binding IsCustomTimeRule, Converter={StaticResource BoolToVis}}" Margin="0,10,0,0">
-                                <TextBlock Text="Costo por Pista (ms/track)" FontSize="11" Margin="0,0,0,3"/>
+                                <TextBlock Text="Tiempo por Pista (búsqueda)" FontSize="11" Margin="0,0,0,3"/>
                                 <TextBox Text="{Binding CustomSeekTime}" Padding="5" FontSize="12"/>
                                 
-                                <TextBlock Text="Costo Servcio por Petición (ms)" FontSize="11" Margin="0,10,0,3"/>
+                                <TextBlock Text="Tiempo por Solicitud (lectura/escritura)" FontSize="11" Margin="0,10,0,3"/>
                                 <TextBox Text="{Binding CustomServiceTime}" Padding="5" FontSize="12"/>
                             </StackPanel>
 
