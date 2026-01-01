@@ -48,6 +48,57 @@ namespace AppEntradaSalidaDESO.Services
         }
 
         /// <summary>
+        /// Convierte un número de bloque a una tupla (Cilindro, Cara, Sector)
+        /// </summary>
+        /// <param name="blockNumber">Número de bloque a convertir</param>
+        /// <param name="specs">Especificaciones del disco</param>
+        /// <returns>Tupla (Cilindro, Cara, Sector)</returns>
+        public (int Cylinder, int Head, int Sector) BlockToCHS(int blockNumber, DiskSpecs specs)
+        {
+            if (specs == null) throw new ArgumentNullException(nameof(specs));
+            if (blockNumber < 0) throw new ArgumentException("El número de bloque no puede ser negativo", nameof(blockNumber));
+
+            // Primero encontramos el bloque físico absoluto (considerando sectores por bloque)
+            // Asumimos bloque lógico = bloque físico * sectores por bloque si blockNumber es "bloque lógico de sistema de archivos"
+            // Pero usualmente en estos ejercicios blockNumber se trata como direccionamiento lineal de sectores o bloques fijos.
+            // Dado el contexto de "Conversor Bloque -> Pista", asumiremos que el input es un índice lineal de bloque 
+            // y que cada bloque ocupa 'specs.BlockSize' bytes.
+            
+            // Si el bloque no está alineado con sectores, esto puede ser complejo.
+            // Simplificación: Asumimos BlockSize es múltiplo de SectorSize.
+            int sectorsPerBlock = CalculateSectorsPerBlock(specs);
+            
+            // El sector de inicio absoluto
+            long startSector = (long)blockNumber * sectorsPerBlock;
+
+            // Geometría CHS Standard:
+            // LBA = (C × HPC + H) × SPT + (S - 1)
+            // Donde:
+            // C = Cilindro, H = Cara (Head), S = Sector (1-based), 
+            // HPC = Heads Per Cylinder (Caras), SPT = Sectors Per Track
+            
+            // Inversamente:
+            // S = (LBA % SPT) + 1
+            // Temp = LBA / SPT
+            // H = Temp % HPC
+            // C = Temp / HPC
+
+            long lba = startSector;
+            int spt = specs.SectorsPerTrack;
+            int hpc = specs.Faces; // Caras
+
+            if (spt <= 0 || hpc <= 0) return (0, 0, 0);
+
+            // Cálculo
+            int sector = (int)(lba % spt) + 1; // Sector es 1-based tradicionalmente
+            long temp = lba / spt;
+            int head = (int)(temp % hpc);
+            int cylinder = (int)(temp / hpc);
+
+            return (cylinder, head, sector);
+        }
+
+        /// <summary>
         /// Convierte una lista de números de bloque a números de pista
         /// </summary>
         /// <param name="blockNumbers">Lista de números de bloque</param>

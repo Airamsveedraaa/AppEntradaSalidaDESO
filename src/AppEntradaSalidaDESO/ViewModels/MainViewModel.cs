@@ -45,6 +45,12 @@ namespace AppEntradaSalidaDESO.ViewModels
         private string _resultOutput = string.Empty;
 
         [ObservableProperty]
+        private string _warningMessage = string.Empty;
+
+        [ObservableProperty]
+        private ExerciseResult? _lastResult;
+
+        [ObservableProperty]
         private ExerciseResult? _currentResult;
 
 
@@ -59,6 +65,25 @@ namespace AppEntradaSalidaDESO.ViewModels
         [ObservableProperty]
         private int _nStep = 2;
 
+        // Propiedades de Especificación Avanzada de Disco
+        [ObservableProperty]
+        private bool _useAdvancedSpecs = false;
+
+        [ObservableProperty]
+        private int _sectorsPerTrack = 32;
+
+        [ObservableProperty]
+        private int _faces = 16;
+
+        [ObservableProperty]
+        private int _sectorSize = 512;
+
+        [ObservableProperty]
+        private int _blockSize = 4096;
+
+        [ObservableProperty]
+        private int _rpm = 7200;
+
 
 
         [ObservableProperty]
@@ -69,7 +94,21 @@ namespace AppEntradaSalidaDESO.ViewModels
 
         public List<string> AlgorithmNames => _algorithmService.GetAlgorithmNames().ToList();
 
-        public bool IsScanNSelected => SelectedAlgorithmName == "SCAN-N";
+        public bool IsScanNSelected => SelectedAlgorithmName == "SCAN-N" || SelectedAlgorithmName == "LOOK-N";
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(ExecuteCommand))]
+        private bool _isDynamicArrivals;
+
+        [ObservableProperty]
+        private ObservableCollection<DiskRequestGroup> _arrivalGroups = new ObservableCollection<DiskRequestGroup>();
+
+        // New Input Model for Dynamic Arrivals
+        [ObservableProperty]
+        private double _newArrivalInstant;
+        
+        [ObservableProperty]
+        private string _newArrivalTracks = string.Empty;
 
         public MainViewModel()
         {
@@ -77,6 +116,31 @@ namespace AppEntradaSalidaDESO.ViewModels
             _calculationService = new DiskCalculationService();
             Algorithms = new ObservableCollection<string>(_algorithmService.GetAlgorithmNames());
             SelectedAlgorithmName = Algorithms.FirstOrDefault();
+            
+            // Default first group
+            ArrivalGroups.Add(new DiskRequestGroup(0.0, ""));
+        }
+
+        [RelayCommand]
+        private void AddArrivalGroup()
+        {
+            if (!string.IsNullOrWhiteSpace(NewArrivalTracks))
+            {
+                ArrivalGroups.Add(new DiskRequestGroup(NewArrivalInstant, NewArrivalTracks));
+                // Reset inputs
+                NewArrivalTracks = string.Empty;
+                ExecuteCommand.NotifyCanExecuteChanged();
+            }
+        }
+
+        [RelayCommand]
+        private void RemoveArrivalGroup(DiskRequestGroup group)
+        {
+            if (ArrivalGroups.Contains(group))
+            {
+                ArrivalGroups.Remove(group);
+                ExecuteCommand.NotifyCanExecuteChanged();
+            }
         }
 
         partial void OnSelectedAlgorithmNameChanged(string? value)
@@ -94,27 +158,63 @@ namespace AppEntradaSalidaDESO.ViewModels
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(SelectedAlgorithmName)) return;
+                LastResult = null;
+                WarningMessage = string.Empty;
+                
+                List<DiskRequest> requests = new List<DiskRequest>();
 
-                if (string.IsNullOrWhiteSpace(SelectedAlgorithmName)) return;
-                
-                // Parse requests (pueden ser bloques o pistas, formato Track:Time opcional)
-                var inputRequests = ParseRequests(RequestsInput, out List<string> errors);
-                
-                if (errors.Count > 0)
+                if (IsDynamicArrivals)
                 {
-                    ResultOutput = "Errores de formato en la entrada:\n- " + string.Join("\n- ", errors);
-                    return;
+                    // Dynamic Parsing
+                    int order = 1;
+                    foreach (var group in ArrivalGroups.OrderBy(g => g.ArrivalTime))
+                    {
+                        var parts = group.TracksInput.Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var part in parts)
+                        {
+                            if (int.TryParse(part, out int pos))
+                            {
+                                requests.Add(new DiskRequest(pos, order++, group.ArrivalTime));
+                            }
+                        }
+                    }
+                    if (requests.Count == 0)
+                    {
+                        WarningMessage = "No hay peticiones válidas en los grupos configurados.";
+                        return;
+                    }
+                }
+                else
+                {
+                    // Legacy/Simple Parsing
+                    if (string.IsNullOrWhiteSpace(RequestsInput))
+                    {
+                        WarningMessage = "Introduce al menos una petición.";
+                        return;
+                    }
+
+                     // Parse requests (pueden ser bloques o pistas, formato Track:Time opcional)
+                    var inputRequests = ParseRequests(RequestsInput, out List<string> errors);
+                
+                    if (errors.Count > 0)
+                    {
+                        ResultOutput = "Errores de formato en la entrada:\n- " + string.Join("\n- ", errors);
+                        return;
+                    }
+
+                    if (inputRequests.Count == 0)
+                    {
+                        ResultOutput = "Error: Por favor introduce al menos una petición de disco válida.";
+                        return;
+                    }
+                    requests = inputRequests;
                 }
 
-                if (inputRequests.Count == 0)
+                if (requests.Count == 0)
                 {
-                    ResultOutput = "Error: Por favor introduce al menos una petición de disco válida.";
+                    WarningMessage = "No se encontraron peticiones válidas.";
                     return;
                 }
-
-                // (Conversión de bloques eliminada por simplificación)
-                List<DiskRequest> requests = inputRequests;
 
                 // Validaciones
                 if (InitialPosition < MinCylinder || InitialPosition > MaxCylinder)
@@ -144,6 +244,17 @@ namespace AppEntradaSalidaDESO.ViewModels
                 double timePerTrack = TimePerTrack;
                 double timePerRequest = TimePerRequest;
 
+                // Calculo dinámico si se seleccionan opciones avanzadas
+                double calculatedRotationTime = 0;
+                if (UseAdvancedSpecs && Rpm > 0)
+                {
+                    // RPM -> ms por vuelta
+                    calculatedRotationTime = (60.0 * 1000.0) / Rpm;
+                    
+                    // Si el usuario quiere, podemos sobreescribir el TimePerTrack/Request basado en esto
+                    // Pero por ahora mantenemos la flexibilidad y solo pasamos los params si el algoritmo los necesitara
+                }
+
                 // Ejecutar el algoritmo
                 var result = algorithm.Execute(
                     InitialPosition,
@@ -155,6 +266,39 @@ namespace AppEntradaSalidaDESO.ViewModels
                     timePerRequest,
                     NStep
                 );
+
+                // Recalcular Tiempos con mayor precisión si tenemos Specs avanzadas
+                if (UseAdvancedSpecs)
+                {
+                    var specs = new DiskSpecs 
+                    { 
+                        SectorsPerTrack = SectorsPerTrack,
+                        Faces = Faces,
+                        SectorSize = SectorSize,
+                        BlockSize = BlockSize,
+                        Cylinders = MaxCylinder // aprox
+                    };
+                    
+                    var timeSpecs = new TimeSpecs
+                    {
+                        SeekTimePerTrack = TimePerTrack,
+                        RPM = Rpm,
+                        SectorsPerBlock = _calculationService.CalculateSectorsPerBlock(specs)
+                    };
+
+                    // Recalcular AccessTime usando el servicio
+                    var detailedTime = _calculationService.CalculateAccessTime(
+                        result.TotalHeadMovement, 
+                        requests.Count, 
+                        timeSpecs, 
+                        specs
+                    );
+                    
+                    // Actualizar el resultado con los tiempos detallados
+                    result.AccessTime = detailedTime;
+                    result.TotalTime = detailedTime.TotalTimeMs;
+                }
+
 
                 CurrentResult = result;
                 
@@ -174,7 +318,14 @@ namespace AppEntradaSalidaDESO.ViewModels
 
         private bool CanExecuteAlgorithm()
         {
-            return !string.IsNullOrWhiteSpace(SelectedAlgorithmName) && !string.IsNullOrWhiteSpace(RequestsInput);
+            if (string.IsNullOrWhiteSpace(SelectedAlgorithmName)) return false;
+
+            if (IsDynamicArrivals)
+            {
+                return ArrivalGroups.Count > 0;
+            }
+
+            return !string.IsNullOrWhiteSpace(RequestsInput);
         }
 
         private List<DiskRequest> ParseRequests(string input, out List<string> errors)

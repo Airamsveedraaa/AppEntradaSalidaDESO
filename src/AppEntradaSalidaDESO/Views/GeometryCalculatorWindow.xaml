@@ -4,8 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:AppEntradaSalidaDESO.ViewModels"
+        xmlns:conv="clr-namespace:AppEntradaSalidaDESO.Converters"
         mc:Ignorable="d"
-        Title="Calculadora de Geometría de Disco" Height="700" Width="750"
+        Title="Calculadora de Geometría de Disco" Height="750" Width="750"
         WindowStartupLocation="CenterScreen">
     
     <Window.DataContext>
@@ -13,6 +14,10 @@
     </Window.DataContext>
 
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
+        <conv:InverseBooleanConverter x:Key="InverseBool"/>
+        
         <Style TargetType="TextBlock">
             <Setter Property="Margin" Value="0,5,0,2"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -34,77 +39,96 @@
 
         <TextBlock Text="Calculadora de Geometría de Disco" FontSize="18" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,15"/>
 
-        <!-- Opción 1: Calcular desde Tamaño del Disco -->
-        <GroupBox Grid.Row="1" Header="Opción 1: Calcular Geometría desde Tamaño del Disco" Padding="10" Margin="0,0,0,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
-                    <ColumnDefinition Width="10"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="10"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Tamaño del Disco"/>
-                    <TextBox Text="{Binding DiskSizeValue, UpdateSourceTrigger=PropertyChanged}" ToolTip="Ejemplo: 10, 500, 1.5"/>
+        <!-- Configuración Unificada -->
+        <GroupBox Grid.Row="1" Grid.RowSpan="2" Header="Configuración de Geometría" Padding="10" Margin="0,0,0,10">
+            <StackPanel>
+                <!-- Modo de Cálculo -->
+                <TextBlock Text="1. ¿Qué dato conoces?" Margin="0,0,0,5"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                    <RadioButton Content="Tengo Cilindros (Calcular Capacidad)" 
+                                 IsChecked="{Binding IsSolveForCapacity}" 
+                                 GroupName="SolveMode" Margin="0,0,15,0"/>
+                    <RadioButton Content="Tengo Capacidad (Calcular Cilindros)" 
+                                 IsChecked="{Binding IsSolveForCapacity, Converter={StaticResource InverseBool}}" 
+                                 GroupName="SolveMode"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="2">
-                    <TextBlock Text="Unidad"/>
-                    <ComboBox ItemsSource="{Binding SizeUnits}" SelectedItem="{Binding SelectedSizeUnit}" Padding="5"/>
+                <!-- Inputs Físicos -->
+                <TextBlock Text="2. Geometría Física" Margin="0,0,0,5"/>
+                <Grid Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Caras (Heads)" FontSize="11"/>
+                        <TextBox Text="{Binding Specs.Faces, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Sectores/Pista" FontSize="11"/>
+                        <TextBox Text="{Binding Specs.SectorsPerTrack, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="Tam. Sector (B)" FontSize="11"/>
+                        <TextBox Text="{Binding Specs.SectorSize, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="6">
+                        <TextBlock Text="Tam. Bloque (B)" FontSize="11"/>
+                        <TextBox Text="{Binding Specs.BlockSize, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Input Variable -->
+                <TextBlock Text="3. Dato Objetivo" Margin="0,0,0,5"/>
+                
+                <!-- Input: CILINDROS (Visible si IsSolveForCapacity = True) -->
+                <StackPanel Visibility="{Binding IsSolveForCapacity, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Nº Cilindros (Pistas/Cara)" FontSize="11" Foreground="#007ACC"/>
+                    <TextBox Text="{Binding Specs.Cylinders, UpdateSourceTrigger=PropertyChanged}" FontWeight="Bold"/>
                 </StackPanel>
 
-                <Button Grid.Column="4" Command="{Binding CalculateFromDiskSizeCommand}" Content="Calcular Pistas" 
-                        Padding="15,5" VerticalAlignment="Bottom" Margin="0,0,0,5" Background="#28a745" Foreground="White" FontWeight="Bold"/>
-            </Grid>
-        </GroupBox>
-
-        <!-- Opción 2: Especificaciones Manuales -->
-        <GroupBox Grid.Row="2" Header="Opción 2: Especificaciones Manuales del Disco" Padding="10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="10"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <!-- Col 0 -->
-                <StackPanel Grid.Row="0" Grid.Column="0">
-                    <TextBlock Text="Sectores por Pista"/>
-                    <TextBox Text="{Binding Specs.SectorsPerTrack, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Row="1" Grid.Column="0">
-                    <TextBlock Text="Caras (Superficies)"/>
-                    <TextBox Text="{Binding Specs.Faces, UpdateSourceTrigger=PropertyChanged}"/>
+                <!-- Input: CAPACIDAD (Visible si IsSolveForCapacity = False) -->
+                <StackPanel Visibility="{Binding IsSolveForCapacity, Converter={StaticResource InverseBoolToVis}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Capacidad Total" FontSize="11" Foreground="#28a745"/>
+                            <TextBox Text="{Binding CapacityInput, UpdateSourceTrigger=PropertyChanged}" FontWeight="Bold"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Unidad" FontSize="11"/>
+                            <ComboBox ItemsSource="{Binding SizeUnits}" SelectedItem="{Binding SelectedCapacityUnit}" Padding="5" MinWidth="60"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
                 
-                <StackPanel Grid.Row="2" Grid.Column="0">
-                   <TextBlock Text="Cilindros (Pistas)"/>
-                   <TextBox Text="{Binding Specs.Cylinders, UpdateSourceTrigger=PropertyChanged}"/>
+                <!-- Configuración Extra -->
+                <TextBlock Text="4. Configuración Extra" Margin="0,5,0,5"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                    <TextBlock Text="Indicar índice primera pista: " VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <RadioButton GroupName="idx" Content="0" IsChecked="{Binding IsFirstTrackIndexOne, Converter={StaticResource InverseBool}}" Margin="0,0,10,0"/>
+                    <RadioButton GroupName="idx" Content="1" IsChecked="{Binding IsFirstTrackIndexOne}" />
                 </StackPanel>
 
-                <!-- Col 2 -->
-                <StackPanel Grid.Row="0" Grid.Column="2">
-                    <TextBlock Text="Tamaño Sector (Bytes)"/>
-                    <TextBox Text="{Binding Specs.SectorSize, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Row="1" Grid.Column="2">
-                    <TextBlock Text="Tamaño Bloque (Bytes)"/>
-                    <TextBox Text="{Binding Specs.BlockSize, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-            </Grid>
+                <Button Command="{Binding CalculateCommand}" Content="🔄 Recalcular" Margin="0,10,0,0" Padding="5"/>
+            </StackPanel>
         </GroupBox>
 
         <!-- Dynamic Results -->
-        <Border Grid.Row="3" Margin="0,15,0,0" Background="#F0F8FF" Padding="10" BorderBrush="#007ACC" BorderThickness="1">
+        <Border Grid.Row="3" Margin="0,5,0,0" Background="#F0F8FF" Padding="10" BorderBrush="#007ACC" BorderThickness="1">
             <StackPanel>
                 <TextBlock Text="📊 Resultados Calculados" FontWeight="Bold" FontSize="14" Foreground="#007ACC" Margin="0,0,0,10"/>
                 
@@ -114,7 +138,6 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -135,13 +158,13 @@
 
                     <!-- Row 1 -->
                     <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,3">
-                        <TextBlock Text="Sectores/Cilindro: " FontWeight="Normal"/>
-                        <TextBlock Text="{Binding SectorsPerCylinder}" FontWeight="Bold" Foreground="Green"/>
+                        <TextBlock Text="Cilindros (Pistas/Cara): " FontWeight="Normal"/>
+                        <TextBlock Text="{Binding Specs.Cylinders}" FontWeight="Bold" Foreground="Green"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,3">
-                        <TextBlock Text="Bytes/Cilindro: " FontWeight="Normal"/>
-                        <TextBlock Text="{Binding BytesPerCylinder, StringFormat=N0}" FontWeight="Bold" Foreground="Green"/>
+                        <TextBlock Text="Pistas Totales: " FontWeight="Normal"/>
+                        <TextBlock Text="{Binding TrackRangeString}" FontWeight="Bold" Foreground="Green"/>
                     </StackPanel>
 
                     <!-- Row 2 -->
@@ -179,21 +202,31 @@
         </Border>
 
         <!-- Block Converter -->
-        <GroupBox Grid.Row="4" Header="Convertidor Bloque → Pista" Margin="0,15,0,0" Padding="10">
+        <GroupBox Grid.Row="4" Header="Convertidor Bloque → CHS y Pistas" Margin="0,10,0,0" Padding="5">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
-                <TextBlock Text="Introduce números de bloque (separados por comas):"/>
+                <TextBlock Grid.Row="0" Text="Bloques (separados por coma/espacio):" Margin="0,0,0,5"/>
                 <TextBox Grid.Row="1" Text="{Binding BlockInputs, UpdateSourceTrigger=PropertyChanged}" 
-                         Margin="0,5,0,10" Height="50" TextWrapping="Wrap" AcceptsReturn="True"
-                         ToolTip="Ejemplo: 754, 433, 285, 176"/>
+                         Height="50" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10"/>
 
-                <TextBox Grid.Row="2" Text="{Binding ConversionResult}" IsReadOnly="True" 
-                         VerticalScrollBarVisibility="Auto" Background="#F9F9F9" FontFamily="Consolas" FontSize="12"/>
+                <DataGrid Grid.Row="2" ItemsSource="{Binding ConversionResults}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column" MaxHeight="150" Margin="0,0,0,10">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Bloque" Binding="{Binding Block}" Width="*"/>
+                        <DataGridTextColumn Header="Cilindro" Binding="{Binding Cylinder}" Width="*"/>
+                        <DataGridTextColumn Header="Cara" Binding="{Binding Head}" Width="*"/>
+                        <DataGridTextColumn Header="Sector" Binding="{Binding Sector}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <TextBlock Grid.Row="3" Text="Lista de Pistas (Copia rápida para simulador):" Margin="0,0,0,5" FontWeight="SemiBold"/>
+                <TextBox Grid.Row="4" Text="{Binding ConvertedTracksString, Mode=OneWay}" IsReadOnly="True" Background="#F9F9F9" Padding="5"/>
             </Grid>
         </GroupBox>
     </Grid>

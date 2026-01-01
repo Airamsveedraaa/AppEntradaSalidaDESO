@@ -5,6 +5,7 @@ using AppEntradaSalidaDESO.Services;
 using System.Text;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System;
 
 namespace AppEntradaSalidaDESO.ViewModels
@@ -19,6 +20,10 @@ namespace AppEntradaSalidaDESO.ViewModels
         [ObservableProperty]
         private string _blockInputs = string.Empty;
 
+        [ObservableProperty]
+        private ObservableCollection<BlockRow> _conversionResults = new ObservableCollection<BlockRow>();
+        
+        // kept for compatibility if needed, but unused now
         [ObservableProperty]
         private string _conversionResult = string.Empty;
 
@@ -45,6 +50,9 @@ namespace AppEntradaSalidaDESO.ViewModels
         private long _totalBlocks;
 
         [ObservableProperty]
+        private long _totalTracks;
+
+        [ObservableProperty]
         private long _totalCapacityBytes;
 
         [ObservableProperty]
@@ -59,9 +67,56 @@ namespace AppEntradaSalidaDESO.ViewModels
         [ObservableProperty]
         private long _bytesPerCylinder;
 
+        [ObservableProperty]
+        private bool _isSolveForCapacity = true; // true = Cylinders -> Capacity; false = Capacity -> Cylinders
+
+        [ObservableProperty]
+        private string _capacityInput = string.Empty;
+
+        [ObservableProperty]
+        private string _selectedCapacityUnit = "MB";
+
+        [ObservableProperty]
+        private string _convertedTracksString = string.Empty;
+
+        [ObservableProperty]
+        private int _firstTrackIndex = 0; // 0 or 1
+
+        public bool IsFirstTrackIndexOne
+        {
+            get => FirstTrackIndex == 1;
+            set => FirstTrackIndex = value ? 1 : 0;
+        }
+
+        [ObservableProperty]
+        private string _trackRangeString = string.Empty;
+
         public GeometryCalculatorViewModel()
         {
             _calculationService = new DiskCalculationService();
+            // Default initialization
+            UpdateCalculations();
+        }
+
+        partial void OnIsSolveForCapacityChanged(bool value)
+        {
+            // Reset or re-calculate? 
+            UpdateCalculations();
+        }
+
+        partial void OnCapacityInputChanged(string value)
+        {
+             if (!IsSolveForCapacity) UpdateCalculations();
+        }
+
+        partial void OnSelectedCapacityUnitChanged(string value)
+        {
+             if (!IsSolveForCapacity) UpdateCalculations();
+        }
+
+        partial void OnFirstTrackIndexChanged(int value)
+        {
+            OnPropertyChanged(nameof(IsFirstTrackIndexOne));
             UpdateCalculations();
         }
 
@@ -71,48 +126,8 @@ namespace AppEntradaSalidaDESO.ViewModels
              UpdateCalculations();
         }
 
-        [RelayCommand]
-        private void CalculateFromDiskSize()
-        {
-            try
-            {
-                // Convertir tamaño del disco a bytes
-                long diskSizeBytes = ConvertToBytes(DiskSizeValue, SelectedSizeUnit);
-
-                if (diskSizeBytes <= 0)
-                {
-                    ConversionResult = "Error: El tamaño del disco debe ser mayor que 0.";
-                    return;
-                }
-
-                // Fórmula: nº de sectores = tam disco(bytes) / tam sector(bytes)
-                if (Specs.SectorSize > 0)
-                {
-                    long calculatedSectors = diskSizeBytes / Specs.SectorSize;
-                    TotalSectors = calculatedSectors;
-
-                    // Fórmula: nº de pistas = nº de sectores / (nº de sectores/pista * nº de caras)
-                    if (Specs.SectorsPerTrack > 0 && Specs.Faces > 0)
-                    {
-                        int calculatedCylinders = (int)(calculatedSectors / (Specs.SectorsPerTrack * Specs.Faces));
-                        Specs.Cylinders = calculatedCylinders;
-                    }
-
-                    // Fórmula: nº de bloques = tam disco(bytes) / tam bloque(bytes)
-                    if (Specs.BlockSize > 0)
-                    {
-                        TotalBlocks = diskSizeBytes / Specs.BlockSize;
-                    }
-                }
-
-                UpdateCalculations();
-            }
-            catch (Exception ex)
-            {
-                ConversionResult = $"Error al calcular desde tamaño: {ex.Message}";
-            }
-        }
-
+        // Removed CalculateFromDiskSize as it's now integrated into UpdateCalculations via mode
+        
         partial void OnSpecsChanged(DiskSpecs value)
         {
             UpdateCalculations();
@@ -127,20 +142,49 @@ namespace AppEntradaSalidaDESO.ViewModels
         {
             try 
             {
+                // SOLVE MODE LOGIC
+                if (!IsSolveForCapacity)
+                {
+                    // CAPACITY -> CYLINDERS
+                    // Capacity = Cylinders * Heads * Sectors * SectorSize
+                    // Cylinders = Capacity / (Heads * Sectors * SectorSize)
+
+                    if (double.TryParse(CapacityInput, out double capVal) && Specs.Faces > 0 && Specs.SectorsPerTrack > 0 && Specs.SectorSize > 0)
+                    {
+                        long capBytes = ConvertToBytes(capVal, SelectedCapacityUnit);
+                        long denominator = (long)Specs.Faces * Specs.SectorsPerTrack * Specs.SectorSize;
+                        
+                        if (denominator > 0)
+                        {
+                            Specs.Cylinders = (int)(capBytes / denominator);
+                        }
+                    }
+                }
+                
+                // Existing Calculations based on Stats (which now might be updated from capacity)
+
                 // Cálculos básicos
                 BlocksPerCylinder = _calculationService.CalculateBlocksPerCylinder(Specs);
                 
-                // Fórmula: nº de bloques/pista = (sectores/pista * tam sector) / tam bloque
                 if (Specs.BlockSize > 0)
                 {
-                    BlocksPerTrack = (Specs.SectorsPerTrack * Specs.SectorSize) / (double)Specs.BlockSize;
+                    double trackCapacity = Specs.SectorsPerTrack * Specs.SectorSize;
+                    BlocksPerTrack = trackCapacity / (double)Specs.BlockSize;
                 }
 
                 SectorsPerCylinder = Specs.SectorsPerTrack * Specs.Faces;
                 
-                // Fórmula: nº de sectores = nº de pistas * nº de sectores/pista * nº de caras
+                // Fórmula: nº de sectores = nº de pistas (cilindros) * nº de caras * nº de sectores/pista
                 TotalSectors = (long)Specs.Cylinders * Specs.Faces * Specs.SectorsPerTrack;
                 
+                // Fórmula: Total Pistas = Cilindros * Caras
+                TotalTracks = (long)Specs.Cylinders * Specs.Faces;
+
+                // Track Range String (visual aid)
+                long maxTrackIndex = TotalTracks > 0 ? TotalTracks - 1 + FirstTrackIndex : 0;
+                long startTrack = TotalTracks > 0 ? FirstTrackIndex : 0;
+                TrackRangeString = $"{TotalTracks:N0} ({startTrack} - {maxTrackIndex})";
+
                 // Capacidad total = Total sectores × Tamaño sector
                 TotalCapacityBytes = TotalSectors * Specs.SectorSize;
                 TotalCapacityMB = TotalCapacityBytes / (1024.0 * 1024.0);
@@ -156,37 +200,35 @@ namespace AppEntradaSalidaDESO.ViewModels
                 BytesPerCylinder = SectorsPerCylinder * Specs.SectorSize;
 
                 // Convert Blocks if input exists
+                ConversionResults.Clear();
+                var trackList = new List<int>();
                 if (!string.IsNullOrWhiteSpace(BlockInputs))
                 {
                     var parts = BlockInputs.Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries);
-                    var sb = new StringBuilder();
-                    sb.AppendLine("Conversión Bloque → Pista:");
-                    sb.AppendLine("---------------------------");
-
+                    
                     foreach (var part in parts)
                     {
                         if (int.TryParse(part, out int blockNum))
                         {
-                            int track = _calculationService.BlockToTrack(blockNum, Specs);
+                            var chs = _calculationService.BlockToCHS(blockNum, Specs);
                             
-                            // Fórmula: nº de bloques/pista = nº de bloques / nº de pistas
-                            sb.AppendLine($"Bloque {blockNum} => Pista {track}");
-                        }
-                        else
-                        {
-                            sb.AppendLine($"'{part}': No es un número válido");
+                            // Adjust for FirstTrackIndex
+                            int finalCylinder = chs.Cylinder + FirstTrackIndex;
+
+                            // Note: Head/Sector usually are 0-based and 1-based respectively in physics, 
+                            // but user specifically requested offset for "resulting track" (cylinder).
+                            
+                            ConversionResults.Add(new BlockRow(blockNum, finalCylinder, chs.Head, chs.Sector));
+                            trackList.Add(finalCylinder);
                         }
                     }
-                    ConversionResult = sb.ToString();
                 }
-                else
-                {
-                    ConversionResult = "Introduce números de bloque para convertir.";
-                }
+                ConvertedTracksString = string.Join(", ", trackList);
             }
             catch (Exception ex)
             {
-                ConversionResult = $"Error: {ex.Message}";
+                // Simple error handling for now explanation in tooltip or simple message
+                // ConversionResult = $"Error: {ex.Message}"; // We removed string property
             }
         }
 
@@ -203,4 +245,6 @@ namespace AppEntradaSalidaDESO.ViewModels
             };
         }
     }
+
+    public record BlockRow(int Block, int Cylinder, int Head, int Sector);
 }
