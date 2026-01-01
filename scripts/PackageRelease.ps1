@@ -49,7 +49,7 @@ if (-not (Test-Path $ExePath)) {
 Write-Host "[*] Esperando desbloqueo de archivos (5s)..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
 
-$ZipPath = "$OutputDir\SimuladorDiscos_v0.1.0_Beta.zip"
+$ZipPath = "$OutputDir\SimuladorDiscos_v0.2.0_Beta.zip"
 Write-Host "[*] Comprimiendo en ZIP: $ZipPath" -ForegroundColor Green
 if (Test-Path $ZipPath) { Remove-Item $ZipPath }
 Compress-Archive -Path "$OutputDir\App\*" -DestinationPath $ZipPath -Force
