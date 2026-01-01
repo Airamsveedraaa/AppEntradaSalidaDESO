@@ -79,4 +79,5 @@ Practice and understand disk scheduling algorithms with interactive visualizatio
 ---
 **License**: GNU GPLv3
 **Author**: Airamsveedraaa
-**Collaborators**: @sebascm-dev
+**Collaborators**: [@sebascm-dev](https://github.com/sebascm-dev)
+
