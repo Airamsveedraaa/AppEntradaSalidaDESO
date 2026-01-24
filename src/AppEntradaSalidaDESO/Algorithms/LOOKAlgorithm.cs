@@ -87,21 +87,18 @@ namespace AppEntradaSalidaDESO.Algorithms
                 }
 
                 // 4. Verificar Intercepciones
-                var intercept = SimulationHelper.FindEarliestIntercept(
-                    currentPosition,
-                    targetTrack,
-                    currentTime,
-                    timePerTrack,
-                    pendingQueue,
-                    currentDirection);
+                // LOOK no va a límites, solo procesa peticiones disponibles o invierte dirección
+                // Por lo tanto, NO debe permitir intercepciones de peticiones futuras
+                SimulationHelper.InterceptionResult? intercept = null; // Deshabilitado para LOOK
 
                 bool isIntercepted = false;
-                if (intercept != null)
-                {
-                    targetRequest = intercept.Request;
-                    targetTrack = targetRequest.Position;
-                    isIntercepted = true;
-                }
+                // Intercept logic disabled for LOOK
+                // if (intercept != null)
+                // {
+                //     targetRequest = intercept.Request;
+                //     targetTrack = targetRequest.Position;
+                //     isIntercepted = true;
+                // }
 
                 // 5. Mover y Procesar
                 int distance = Math.Abs(targetTrack - currentPosition);

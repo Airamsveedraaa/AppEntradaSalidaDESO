@@ -107,24 +107,7 @@ namespace AppEntradaSalidaDESO.Algorithms
                     }
                 }
 
-                // 4. Verificar Intercepciones en el camino al target
-                var intercept = SimulationHelper.FindEarliestIntercept(
-                    currentPosition,
-                    targetTrack, // Nota: si vamos al límite, targetTrack es el límite
-                    currentTime,
-                    timePerTrack,
-                    pendingQueue,
-                    currentDirection);
-
-                bool isIntercepted = false;
-                if (intercept != null)
-                {
-                    // Encontramos una nueva petición en el camino!
-                    targetRequest = intercept.Request;
-                    targetTrack = targetRequest.Position;
-                    isIntercepted = true;
-                    goingToLimit = false; // Ya no vamos directo al límite, paramos en la intercepción
-                }
+                // No hay lógica de intercepción - las peticiones se procesan completamente una vez seleccionadas
 
                 // 5. Mover y Procesar
                 int distance = Math.Abs(targetTrack - currentPosition);
@@ -136,7 +119,7 @@ namespace AppEntradaSalidaDESO.Algorithms
                     To = targetTrack,
                     Distance = distance,
                     Instant = currentTime,
-                    ArrivalInstant = isIntercepted ? targetRequest.ArrivalTime : (goingToLimit ? 0 : targetRequest.ArrivalTime), // 0 o dummy si es límite
+                    ArrivalInstant = goingToLimit ? 0 : targetRequest.ArrivalTime,
                     Remaining = activeQueue.Where(r => r != targetRequest).Select(r => r.Position).ToList()
                 };
                 result.DetailedSteps.Add(step);
@@ -145,7 +128,7 @@ namespace AppEntradaSalidaDESO.Algorithms
                 totalMovement += distance;
                 currentPosition = targetTrack;
 
-                if (goingToLimit && !isIntercepted)
+                if (goingToLimit)
                 {
                     // Llegamos al límite (pivot), no es una petición real
                     result.AddStep($"T={step.Instant:F2} -> T={currentTime:F2}: Mover al límite {targetTrack} (Dist: {distance})");
@@ -155,19 +138,14 @@ namespace AppEntradaSalidaDESO.Algorithms
                 }
                 else
                 {
-                    // Es una petición (normal o interceptada)
+                    // Es una petición
                     currentTime += timePerRequest;
                     result.ProcessingOrder.Add(targetTrack);
-                    result.AddStep($"T={step.Instant:F2} -> T={currentTime:F2}: Atender {targetTrack} (Dist: {distance}){(isIntercepted ? " [INTERCEPT]" : "")}");
+                    result.AddStep($"T={step.Instant:F2} -> T={currentTime:F2}: Atender {targetTrack} (Dist: {distance})");
 
-                    if (isIntercepted)
-                    {
-                        pendingQueue.Remove(targetRequest);
-                    }
-                    else
-                    {
-                        activeQueue.Remove(targetRequest);
-                    }
+
+                    activeQueue.Remove(targetRequest);
+                    
                     processedRequests.Add(targetRequest);
                 }
             }
