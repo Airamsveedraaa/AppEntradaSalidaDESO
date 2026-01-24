@@ -254,6 +254,10 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 **Airam** - [@Airamsveedraaa](https://github.com/Airamsveedraaa)
 
+### Colaboradores | Contributors
+
+- **Sebastián** - [@sebascm-dev](https://github.com/sebascm-dev)
+
 ---
 
 ## 🙏 Agradecimientos | Acknowledgments
