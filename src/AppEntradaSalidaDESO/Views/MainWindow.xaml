@@ -155,8 +155,8 @@
                     <StackPanel Visibility="{Binding IsDirectionRequired, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="Dirección Inicial" Style="{StaticResource LabelStyle}"/>
                         <ComboBox SelectedItem="{Binding SelectedDirection}" Padding="10" FontSize="14">
-                            <ComboBoxItem Content="up" Tag="up"/>
-                            <ComboBoxItem Content="down" Tag="down"/>
+                            <System:String xmlns:System="clr-namespace:System;assembly=mscorlib">up</System:String>
+                            <System:String xmlns:System="clr-namespace:System;assembly=mscorlib">down</System:String>
                         </ComboBox>
                     </StackPanel>
 
