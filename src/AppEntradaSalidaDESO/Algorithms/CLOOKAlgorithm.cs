@@ -56,9 +56,10 @@ namespace AppEntradaSalidaDESO.Algorithms
                 bool isAscending = currentDirection == "up";
 
                 // 3. Buscar peticiones en dirección actual
+                // C-LOOK debe procesar en ORDEN DE POSICIÓN, no por distancia más cercana
                 var requestsInDirection = activeQueue.Where(r => 
                     isAscending ? r.Position >= currentPosition : r.Position <= currentPosition)
-                    .OrderBy(r => Math.Abs(r.Position - currentPosition))
+                    .OrderBy(r => isAscending ? r.Position : -r.Position) // Orden por posición en la dirección
                     .ToList();
 
                 DiskRequest targetRequest = null;

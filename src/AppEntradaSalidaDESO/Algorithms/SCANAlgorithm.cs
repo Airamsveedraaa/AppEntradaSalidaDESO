@@ -53,12 +53,14 @@ namespace AppEntradaSalidaDESO.Algorithms
 
                 if (activeQueue.Count == 0) break;
 
+
                 bool isAscending = currentDirection == "up";
 
                 // 3. Buscar peticiones en la dirección actual
+                // SCAN debe procesar en ORDEN DE POSICIÓN, no por distancia más cercana
                 var requestsInDirection = activeQueue.Where(r => 
                     isAscending ? r.Position >= currentPosition : r.Position <= currentPosition)
-                    .OrderBy(r => Math.Abs(r.Position - currentPosition))
+                    .OrderBy(r => isAscending ? r.Position : -r.Position) // Orden por posición en la dirección
                     .ToList();
 
                 // Caso especial: SCAN debe ir al extremo si va a cambiar de dirección
@@ -69,7 +71,7 @@ namespace AppEntradaSalidaDESO.Algorithms
 
                 if (requestsInDirection.Count > 0)
                 {
-                    // Hay peticiones en el camino, vamos a la más cercana
+                    // Hay peticiones en el camino, vamos a la siguiente en orden
                     targetRequest = requestsInDirection[0];
                     targetTrack = targetRequest.Position;
                     
