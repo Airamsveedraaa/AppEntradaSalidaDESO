@@ -89,6 +89,9 @@ namespace AppEntradaSalidaDESO.ViewModels
         }
 
         [ObservableProperty]
+        private bool _showCylindersOnly = true; // True = Cylinders (academic), False = Total tracks (technical)
+
+        [ObservableProperty]
         private string _trackRangeString = string.Empty;
 
         public GeometryCalculatorViewModel()
@@ -117,6 +120,11 @@ namespace AppEntradaSalidaDESO.ViewModels
         partial void OnFirstTrackIndexChanged(int value)
         {
             OnPropertyChanged(nameof(IsFirstTrackIndexOne));
+            UpdateCalculations();
+        }
+
+        partial void OnShowCylindersOnlyChanged(bool value)
+        {
             UpdateCalculations();
         }
 
@@ -181,9 +189,22 @@ namespace AppEntradaSalidaDESO.ViewModels
                 TotalTracks = (long)Specs.Cylinders * Specs.Faces;
 
                 // Track Range String (visual aid)
-                long maxTrackIndex = TotalTracks > 0 ? TotalTracks - 1 + FirstTrackIndex : 0;
-                long startTrack = TotalTracks > 0 ? FirstTrackIndex : 0;
-                TrackRangeString = $"{TotalTracks:N0} ({startTrack} - {maxTrackIndex})";
+                // User can choose between showing Cylinders (academic) or Total Physical Tracks (technical)
+                if (ShowCylindersOnly)
+                {
+                    // Academic mode: Show cylinder count (tracks per surface)
+                    long cylinderCount = Specs.Cylinders;
+                    long maxCylinderIndex = cylinderCount > 0 ? (cylinderCount - 1) + FirstTrackIndex : 0;
+                    long startCylinder = cylinderCount > 0 ? FirstTrackIndex : 0;
+                    TrackRangeString = $"Cilindros: {cylinderCount:N0} ({startCylinder} - {maxCylinderIndex})";
+                }
+                else
+                {
+                    // Technical mode: Show total physical tracks (all surfaces)
+                    long maxTrackIndex = TotalTracks > 0 ? TotalTracks - 1 + FirstTrackIndex : 0;
+                    long startTrack = TotalTracks > 0 ? FirstTrackIndex : 0;
+                    TrackRangeString = $"Pistas Totales: {TotalTracks:N0} ({startTrack} - {maxTrackIndex})";
+                }
 
                 // Capacidad total = Total sectores × Tamaño sector
                 TotalCapacityBytes = TotalSectors * Specs.SectorSize;
