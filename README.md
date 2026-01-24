@@ -262,7 +262,7 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 ## 🙏 Agradecimientos | Acknowledgments
 
-- Desarrollado como herramienta de estudio para Sistemas Operativos
+- Desarrollado como herramienta de estudio para Diseño y Estructura de Sistemas Operativos
 - Basado en material académico de gestión de E/S
 - Gracias a todos los que han probado y reportado issues
 
